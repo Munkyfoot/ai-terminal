@@ -1,12 +1,19 @@
 import json
+import logging
 import os
-import re
 import sys
 from enum import Enum
 from typing import Literal
 
 from dotenv import load_dotenv
 from openai import OpenAI
+
+# Set up logging - save logs to a file
+logging.basicConfig(
+    filename="chat_with_ai.log",
+    level=logging.DEBUG,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -85,7 +92,7 @@ def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
 
 def write_file(file_path, content):
     print(
-        f"{PrintStyle.GREEN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
+        f"{PrintStyle.CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
     )
     file_path = os.path.join(USER_CWD, file_path)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -94,33 +101,17 @@ def write_file(file_path, content):
     return f"File '{file_path}' written successfully."
 
 
-def write_files(files_dict):
-    results = []
-    for file_path, content in files_dict.items():
-        result = write_file(file_path, content)
-        results.append(result)
-    return "\n".join(results)
-
-
 def read_file(file_path):
     print(
-        f"{PrintStyle.GREEN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}"
+        f"{PrintStyle.CYAN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}"
     )
     file_path = os.path.join(USER_CWD, file_path)
     try:
         with open(file_path, "r") as file:
             content = file.read()
-        return content
+        return f"Content of file '{file_path}':\n\n{content}"
     except FileNotFoundError:
         return f"File '{file_path}' not found."
-
-
-def read_files(file_paths):
-    results = []
-    for file_path in file_paths:
-        result = f"`{file_path}`:\n```{read_file(file_path)}```"
-        results.append(result)
-    return "\n\n".join(results)
 
 
 FILE_WRITER_TOOL = {
@@ -145,32 +136,6 @@ FILE_WRITER_TOOL = {
     },
 }
 
-FILE_WRITER_MULTIPLE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "file_writer_multiple",
-        "description": "Writes content to multiple files at the specified paths relative to the current working directory, creating directories if necessary.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "files": {
-                    "type": "array",
-                    "description": "An array of objects containing file paths and their corresponding content.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "file_path": {"type": "string"},
-                            "content": {"type": "string"},
-                        },
-                        "required": ["file_path", "content"],
-                    },
-                },
-            },
-            "required": ["files_dict"],
-        },
-    },
-}
-
 FILE_READER_TOOL = {
     "type": "function",
     "function": {
@@ -185,25 +150,6 @@ FILE_READER_TOOL = {
                 },
             },
             "required": ["file_path"],
-        },
-    },
-}
-
-FILE_READER_MULTIPLE_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "file_reader_multiple",
-        "description": "Reads the content of multiple files at the specified paths relative to the current working directory.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "file_paths": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "A list of file paths (relative to the current working directory) to read.",
-                },
-            },
-            "required": ["file_paths"],
         },
     },
 }
@@ -226,6 +172,21 @@ class Agent:
             self.load_memory()
         self.view_list_dir = view_list_dir
         self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
+
+    def process_tool_call(self, tool_call):
+        tool_name = tool_call["tool_name"]
+        args = json.loads(tool_call["args_json"])
+        if tool_name == "file_writer":
+            file_name = args["file_path"]
+            content = args["content"]
+            result = write_file(file_name, content)
+        elif tool_name == "file_reader":
+            file_name = args["file_path"]
+            result = read_file(file_name)
+        else:
+            return False
+
+        return result
 
     def run(self, query: str) -> None:
         self.chat.append({"role": "user", "content": query})
@@ -255,127 +216,70 @@ class Agent:
             model=self.model,
             tools=[
                 FILE_WRITER_TOOL,
-                FILE_WRITER_MULTIPLE_TOOL,
                 FILE_READER_TOOL,
-                FILE_READER_MULTIPLE_TOOL,
             ],
             stream=True,
         )
 
         text_stream_content = ""
-        function_call_detected = False
+        tool_calls = {}
+        tool_call_detected = False
         for chunk in stream:
+            if chunk.choices[0].delta.tool_calls:
+                for tool_call in chunk.choices[0].delta.tool_calls:
+                    tool_call_detected = True
+                    if tool_call.index not in tool_calls:
+                        tool_calls[tool_call.index] = {
+                            "tool_name": tool_call.function.name,
+                            "args_json": "",
+                        }
+
+                        if text_stream_content:
+                            print(PrintStyle.RESET.value)
+
+                        print(
+                            f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}"
+                        )
+
+                    tool_calls[tool_call.index][
+                        "args_json"
+                    ] += tool_call.function.arguments
+
             text = chunk.choices[0].delta.content
             if text:
                 text_stream_content += text
 
-                # if "<function_calls>" in text_stream_content and not function_call_detected:
-                #     # Clear and overwrite the current line
-                #     print("\033[K", end="\r")
-                #     print(f"{PrintStyle.GREEN.value}<function_calls>", flush=True)
-                #     function_call_detected = True
-
                 print(text, end="", flush=True)
         print(PrintStyle.RESET.value)
 
+        if tool_call_detected:
+            for index, tool_call in tool_calls.items():
+                tool_confirmation = input(
+                    f"{PrintStyle.MAGENTA.value}Attempting to use {tool_call['tool_name']} with args:\n{PrintStyle.RESET.value}{json.loads(tool_call['args_json'])}\n{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
+                )
+                if tool_confirmation.lower() == "y":
+                    try:
+                        print(
+                            f"{PrintStyle.CYAN.value}Executing tool...{PrintStyle.RESET.value}"
+                        )
+                        tool_result = self.process_tool_call(tool_call)
+                        if tool_result:
+                            text_stream_content += f"\n\n{tool_result}"
+                        print(
+                            f"{PrintStyle.GREEN.value}Tool executed successfully.{PrintStyle.RESET.value}"
+                        )
+                    except Exception as e:
+                        print(
+                            f"{PrintStyle.RED.value}Error executing tool: {e}{PrintStyle.RESET.value}"
+                        )
+                else:
+                    print(
+                        f"{PrintStyle.YELLOW.value}Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                    )
+
         message = text_stream_content
-
-        # run_functions = False
-        # if "<function_calls>" in message:
-        #     if input("Run function calls? (y/[n]): ").lower() == "y":
-        #         print(
-        #             f"{PrintStyle.GREEN.value}Running functions...{PrintStyle.RESET.value}"
-        #         )
-        #         run_functions = True
-        #     else:
-        #         print(
-        #             f"{PrintStyle.YELLOW.value}Aborted running functions.{PrintStyle.RESET.value}"
-        #         )
-        #         message = "Aborted running functions."
-
-        # if run_functions:
-        #     try:
-        #         message = message + "</function_calls>"
-        #         function_calls = extract_between_tags("function_calls", message)
-
-        #         def process_function_call(tool_name, function_call, query, message):
-        #             if tool_name == "file_writer":
-        #                 file_name = extract_between_tags("file_path", function_call)[0]
-        #                 content = extract_between_tags("content", function_call)[0]
-        #                 result = write_file(file_name, content)
-        #             elif tool_name == "file_writer_multiple":
-        #                 files_dict_str = extract_between_tags(
-        #                     "files_dict", function_call
-        #                 )[0]
-        #                 files_dict = json.loads(files_dict_str)
-        #                 result = write_files(files_dict)
-        #             elif tool_name == "file_reader":
-        #                 file_name = extract_between_tags("file_path", function_call)[0]
-        #                 result = read_file(file_name)
-        #             elif tool_name == "file_reader_multiple":
-        #                 file_paths = json.loads(
-        #                     extract_between_tags("file_paths", function_call)[0]
-        #                 )
-        #                 result = read_files(file_paths)
-        #             else:
-        #                 return False
-
-        #             function_results = (
-        #                 construct_successful_function_run_injection_prompt(
-        #                     [{"tool_name": tool_name, "tool_result": result}]
-        #                 )
-        #             )
-        #             partial_assistant_message = f"{message}\n\n{function_results}\n\nHere's a brief summary of what was done and what to do next:"
-
-        #             final_message = (
-        #                 self.client.messages.create(
-        #                     model=self.model,
-        #                     max_tokens=512,
-        #                     messages=[
-        #                         {"role": "user", "content": query},
-        #                         {
-        #                             "role": "assistant",
-        #                             "content": partial_assistant_message,
-        #                         },
-        #                     ],
-        #                     system=f"{self.system_prompt}\n\nYou cannot make any more function calls in this response.",
-        #                 )
-        #                 .content[0]
-        #                 .text
-        #             )
-
-        #             print(final_message)
-
-        #             self.chat.append(
-        #                 {
-        #                     "role": "assistant",
-        #                     "content": f"{partial_assistant_message}\n\n{final_message}",
-        #                 }
-        #             )
-
-        #             return True
-
-        #         for function_call in function_calls:
-        #             tool_name = extract_between_tags("tool_name", function_call)[0]
-        #             result = process_function_call(
-        #                 tool_name, function_call, query, message
-        #             )
-
-        #             if result is False:
-        #                 self.chat.append({"role": "assistant", "content": message})
-        #                 break
-        #     except Exception as e:
-        #         print(
-        #             f"{PrintStyle.RED.value}An error occurred while running the function calls: {e}{PrintStyle.RESET.value}"
-        #         )
-        #         self.chat.append(
-        #             {
-        #                 "role": "assistant",
-        #                 "content": f"{message}\n\nAn error occurred while running the function calls: {e}",
-        #             }
-        #         )
-        # else:
-        self.chat.append({"role": "assistant", "content": message})
+        if message:
+            self.chat.append({"role": "assistant", "content": message})
 
         if self.use_memory:
             self.save_memory()
