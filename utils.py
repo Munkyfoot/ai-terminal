@@ -10,7 +10,7 @@ from openai import OpenAI
 
 # Set up logging - save logs to a file
 logging.basicConfig(
-    filename="chat_with_ai.log",
+    filename="debug.log",
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )

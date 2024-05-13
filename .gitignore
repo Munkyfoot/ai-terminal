@@ -2,6 +2,7 @@ ask
 ask.bat
 .env
 memory.json
+*.log
 
 __pycache__/
 venv/
