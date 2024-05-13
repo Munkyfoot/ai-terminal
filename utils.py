@@ -128,18 +128,20 @@ FILE_WRITER_TOOL = {
     "function": {
         "name": "file_writer",
         "description": "Writes content to a file at the specified path relative to the current working directory, creating directories if necessary.",
-        "parameters": [
-            {
-                "name": "file_path",
-                "type": "str",
-                "description": "The path of the file to create (relative to the current working directory).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The path of the file to create (relative to the current working directory).",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The content to write to the file.",
+                },
             },
-            {
-                "name": "content",
-                "type": "str",
-                "description": "The content to write to the file.",
-            },
-        ],
+            "required": ["file_path", "content"],
+        },
     },
 }
 
@@ -148,13 +150,24 @@ FILE_WRITER_MULTIPLE_TOOL = {
     "function": {
         "name": "file_writer_multiple",
         "description": "Writes content to multiple files at the specified paths relative to the current working directory, creating directories if necessary.",
-        "parameters": [
-            {
-                "name": "files_dict",
-                "type": "dict",
-                "description": "A dictionary where the keys are file paths (relative to the current working directory) and the values are the content to write to each file. Be sure to use json format for the dictionary/object. Keys and values should be single-line strings. Use the escape character for newlines.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "files": {
+                    "type": "array",
+                    "description": "An array of objects containing file paths and their corresponding content.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "file_path": {"type": "string"},
+                            "content": {"type": "string"},
+                        },
+                        "required": ["file_path", "content"],
+                    },
+                },
             },
-        ],
+            "required": ["files_dict"],
+        },
     },
 }
 
@@ -163,13 +176,16 @@ FILE_READER_TOOL = {
     "function": {
         "name": "file_reader",
         "description": "Reads the content of a file at the specified path relative to the current working directory.",
-        "parameters": [
-            {
-                "name": "file_path",
-                "type": "str",
-                "description": "The path of the file to read (relative to the current working directory).",
-            }
-        ],
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The path of the file to read (relative to the current working directory).",
+                },
+            },
+            "required": ["file_path"],
+        },
     },
 }
 
@@ -178,13 +194,17 @@ FILE_READER_MULTIPLE_TOOL = {
     "function": {
         "name": "file_reader_multiple",
         "description": "Reads the content of multiple files at the specified paths relative to the current working directory.",
-        "parameters": [
-            {
-                "name": "file_paths",
-                "type": "list",
-                "description": "A list of file paths (relative to the current working directory) to read.",
-            }
-        ],
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "A list of file paths (relative to the current working directory) to read.",
+                },
+            },
+            "required": ["file_paths"],
+        },
     },
 }
 
@@ -233,6 +253,12 @@ class Agent:
             ]
             + _messages,
             model=self.model,
+            tools=[
+                FILE_WRITER_TOOL,
+                FILE_WRITER_MULTIPLE_TOOL,
+                FILE_READER_TOOL,
+                FILE_READER_MULTIPLE_TOOL,
+            ],
             stream=True,
         )
 
