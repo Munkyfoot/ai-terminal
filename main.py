@@ -12,13 +12,10 @@ if __name__ == "__main__":
         "--memory", "-m", action="store_true", help="Use history to improve responses"
     )
     parser.add_argument(
-        "--opus", "-o", action="store_true", help="Use opus model for better responses"
-    )
-    parser.add_argument(
         "--ls",
         "-l",
         action="store_true",
-        help="Show Claude all files and directories in the current directory (except those specified in the .gitignore file)",
+        help="Show GPT all files and directories in the current directory (except those specified in the .gitignore file)",
     )
 
     # Parse the command-line arguments
@@ -29,7 +26,7 @@ if __name__ == "__main__":
 
     # Create an Agent instance with the specified memory usage
     agent = Agent(
-        model="claude-3-opus-20240229" if args.opus else "claude-3-sonnet-20240229",
+        model="gpt-4-turbo",
         use_memory=args.memory,
         view_list_dir=args.ls,
     )
