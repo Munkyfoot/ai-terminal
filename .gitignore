@@ -1,0 +1,7 @@
+ask
+ask.bat
+.env
+memory.json
+
+__pycache__/
+venv/
