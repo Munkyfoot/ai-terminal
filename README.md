@@ -21,61 +21,61 @@ AI Terminal is a Python-based command-line interface (CLI) tool that allows you 
 
 1. Clone the repository:
 
-    ```bash
-    git clone https://github.com/Munkyfoot/ai-terminal.git
-    ```
+   ```bash
+   git clone https://github.com/Munkyfoot/ai-terminal.git
+   ```
 
 2. Navigate to the project directory:
 
-    ```bash
-    cd ai-terminal
-    ```
+   ```bash
+   cd ai-terminal
+   ```
 
 3. Create a virtual environment:
 
-    ```bash
-    python -m venv venv
-    ```
+   ```bash
+   python -m venv venv
+   ```
 
 4. Activate the virtual environment:
 
-    - For Linux/macOS:
+   - For Linux/macOS:
 
-        ```bash
-        source venv/bin/activate
-        ```
+     ```bash
+     source venv/bin/activate
+     ```
 
-    - For Windows:
+   - For Windows:
 
-        ```batch
-        venv\Scripts\activate
-        ```
+     ```batch
+     venv\Scripts\activate
+     ```
 
 5. Install the required dependencies:
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 6. Rename `.env.example` to `.env`:
 
-    - For Linux/macOS:
+   - For Linux/macOS:
 
-        ```bash
-        mv .env.example .env
-        ```
+     ```bash
+     mv .env.example .env
+     ```
 
-    - For Windows:
+   - For Windows:
 
-        ```batch
-        rename .env.example .env
-        ```
+     ```batch
+     rename .env.example .env
+     ```
 
 7. Add your OpenAI API key in the `.env` file:
 
-    ```env
-    OPENAI_API_KEY="YOUR_API_KEY"
-    ```
+   ```env
+   OPENAI_API_KEY="YOUR_API_KEY"
+   ```
 
 ## Usage
 
@@ -91,32 +91,39 @@ python main.py [query] [flags]
 - `flags`:
   - `--memory` or `-m`: Save/load conversation history to add long-term memory to the conversation.
   - `--ls` or `-l`: Show files and directories in the current working directory.
+  - `--always-allow` or `-a`: Always allow file operations without confirmation.
 
 ### Examples:
 
 1. Start AI Terminal without an initial query:
 
-    ```bash
-    python main.py
-    ```
+   ```bash
+   python main.py
+   ```
 
 2. Provide an initial query:
 
-    ```bash
-    python main.py "How can I list files in a directory?"
-    ```
+   ```bash
+   python main.py "How can I list files in a directory?"
+   ```
 
 3. Use memory to save/load conversation history:
 
-    ```bash
-    python main.py "How can I list files in a directory?" --memory
-    ```
+   ```bash
+   python main.py "Do you remember our previous conversation?" --memory
+   ```
 
 4. Show files and directories to the GPT model for assistance:
 
-    ```bash
-    python main.py "How can I list files in a directory?" --memory --ls
-    ```
+   ```bash
+   python main.py "What files are present in the current directory?" --ls
+   ```
+
+5. Always allow file operations without confirmation:
+
+   ```bash
+    python main.py "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   ```
 
 ## Setting Up for Command Line Alias (`ask`)
 
@@ -124,47 +131,47 @@ python main.py [query] [flags]
 
 1. Open your `.bashrc` or `.zshrc` file:
 
-    ```bash
-    nano ~/.bashrc
-    ```
+   ```bash
+   nano ~/.bashrc
+   ```
 
    Or for zsh:
 
-    ```bash
-    nano ~/.zshrc
-    ```
+   ```bash
+   nano ~/.zshrc
+   ```
 
 2. Add the following line to create an alias:
 
-    ```bash
-    alias ask='python /path/to/your/project/main.py'
-    ```
+   ```bash
+   alias ask='python /path/to/your/project/main.py'
+   ```
 
 3. Save the file and reload the shell configuration:
 
-    ```bash
-    source ~/.bashrc
-    ```
+   ```bash
+   source ~/.bashrc
+   ```
 
    Or for zsh:
 
-    ```bash
-    source ~/.zshrc
-    ```
+   ```bash
+   source ~/.zshrc
+   ```
 
 ### Windows
 
 1. Open the Command Prompt as an Administrator and run:
 
-    ```batch
-    setx PATH "%PATH%;C:\path\to\your\project"
-    ```
+   ```batch
+   setx PATH "%PATH%;C:\path\to\your\project"
+   ```
 
 2. Create a batch file named `ask.bat` in a directory included in your system `PATH`:
 
-    ```batch
-    echo python C:\path\to\your\project\main.py %* > C:\path\to\your\project\ask.bat
-    ```
+   ```batch
+   echo python C:\path\to\your\project\main.py %* > C:\path\to\your\project\ask.bat
+   ```
 
 Now you can use the `ask` command from any location in the terminal:
 
@@ -174,23 +181,35 @@ ask "How can I list files in a directory?" --memory --ls
 
 ### Examples:
 
-1. Ask a general question:
+1. Start AI Terminal without an initial query:
 
-    ```bash
-    ask "What is the weather like today?"
-    ```
+   ```bash
+   ask
+   ```
 
-2. Use memory flag:
+2. Ask a general question:
 
-    ```bash
-    ask "What is the weather like today?" --memory
-    ```
+   ```bash
+   ask "What is the weather like today?"
+   ```
 
-3. Show files and directories to the GPT model:
+3. Use memory flag:
 
-    ```bash
+   ```bash
+   ask "Do you remember my previous question?" --memory
+   ```
+
+4. Show files and directories:
+
+   ```bash
     ask "What files are present in the current directory?" --ls
-    ```
+   ```
+
+5. Always allow file operations without confirmation:
+
+   ```bash
+    ask "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   ```
 
 ## Contributing
 
