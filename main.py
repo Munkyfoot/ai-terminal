@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     # Create an Agent instance with the specified memory usage
     agent = Agent(
-        model="gpt-4-turbo",
+        model="gpt-4o",
         use_memory=args.memory,
         view_list_dir=args.ls,
     )

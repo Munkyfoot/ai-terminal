@@ -158,7 +158,7 @@ FILE_READER_TOOL = {
 class Agent:
     def __init__(
         self,
-        model: Literal["gpt-4-turbo", "gpt-3.5-turbo"] = "claude-4-turbo",
+        model: Literal["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4-turbo",
         use_memory=False,
         view_list_dir=False,
     ) -> None:
