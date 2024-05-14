@@ -205,7 +205,7 @@ class Agent:
         _messages = _messages[-MEMORY_MAX:]
 
         stream = self.client.chat.completions.create(
-            max_tokens=4096,
+            max_tokens=8192,
             messages=[
                 {
                     "role": "system",
