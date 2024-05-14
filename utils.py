@@ -173,6 +173,19 @@ class Agent:
         self.view_list_dir = view_list_dir
         self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
 
+    def get_tool_call_message(self, tool_call):
+        tool_name = tool_call["tool_name"]
+        args = json.loads(tool_call["args_json"])
+        if tool_name == "file_writer":
+            file_name = args["file_path"]
+            content = args["content"]
+            return f"GPT wants to create the file '{file_name}' with this content:\n\n{content}"
+        elif tool_name == "file_reader":
+            file_name = args["file_path"]
+            return f"GPT wants to open and read '{file_name}'"
+        else:
+            return ""
+
     def process_tool_call(self, tool_call):
         tool_name = tool_call["tool_name"]
         args = json.loads(tool_call["args_json"])
@@ -205,7 +218,7 @@ class Agent:
         _messages = _messages[-MEMORY_MAX:]
 
         stream = self.client.chat.completions.create(
-            max_tokens=8192,
+            max_tokens=4096,
             messages=[
                 {
                     "role": "system",
@@ -235,7 +248,7 @@ class Agent:
                         }
 
                         if text_stream_content:
-                            print(PrintStyle.RESET.value)
+                            print("")
 
                         print(
                             f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}"
@@ -250,12 +263,16 @@ class Agent:
                 text_stream_content += text
 
                 print(text, end="", flush=True)
-        print(PrintStyle.RESET.value)
+        if text_stream_content and not tool_call_detected:
+            print("")
 
         if tool_call_detected:
             for index, tool_call in tool_calls.items():
+                print(
+                    f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
+                )
                 tool_confirmation = input(
-                    f"{PrintStyle.MAGENTA.value}Attempting to use {tool_call['tool_name']} with args:\n{PrintStyle.RESET.value}{json.loads(tool_call['args_json'])}\n{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
+                    f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
                 )
                 if tool_confirmation.lower() == "y":
                     try:
