@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import sys
 import subprocess
@@ -8,13 +7,6 @@ from typing import Literal
 
 from dotenv import load_dotenv
 from openai import OpenAI
-
-# Logging Configuration
-logging.basicConfig(
-    filename="debug.log",
-    level=logging.DEBUG,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
 
 # Load environment variables from the .env file
 load_dotenv()
