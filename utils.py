@@ -8,72 +8,114 @@ from typing import Literal
 from dotenv import load_dotenv
 from openai import OpenAI
 
-# Set up logging - save logs to a file
+# Logging Configuration
 logging.basicConfig(
     filename="debug.log",
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
-# Load environment variables from .env file
+# Load environment variables from the .env file
 load_dotenv()
 
 # Constants
 MEMORY_FILE = "memory.json"
-MEMORY_MAX = 24  # Used to limit the number of messages stored in memory (applies to short and long-term memory)
+MEMORY_MAX = 24  # Limit for messages stored in memory
 
 # User's platform and environment information
 USER_PLATFORM = sys.platform
-
-if USER_PLATFORM == "win32":
-    USER_ENV = os.environ.get("COMSPEC")
-else:
-    USER_ENV = os.environ.get("SHELL", "unknown")
-
+USER_ENV = os.environ.get("COMSPEC") if USER_PLATFORM == "win32" else os.environ.get("SHELL", "unknown")
 USER_CWD = os.getcwd()
-
 USER_INFO = f"""User's Information:
 - Platform: {USER_PLATFORM}
 - Environment: {USER_ENV}
 - Current Working Directory: {USER_CWD}
 """
 
+# Enum for console text styles
+class PrintStyle(Enum):
+    RED = "\033[91m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    BLUE = "\033[94m"
+    MAGENTA = "\033[95m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    INVERT = "\033[7m"
+    STRIKETHROUGH = "\033[9m"
+    BOLD_END = "\033[21m"
+    UNDERLINE_END = "\033[24m"
+    INVERT_END = "\033[27m"
+    STRIKETHROUGH_END = "\033[29m"
+    RESET = "\033[0m"
 
-def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
-    output = []
 
-    # Read .gitignore file if use_gitignore is True
+# User's input style prefix
+USER_STYLE_PREFIX = f"{PrintStyle.BLUE.value}"
+
+
+def load_gitignore_entries(use_gitignore):
+    """
+    Loads entries from the .gitignore file if it exists.
+    
+    Args:
+        use_gitignore (bool): Flag to indicate whether to read the .gitignore file.
+    
+    Returns:
+        set: A set of entries from the .gitignore file.
+    """
     gitignore_entries = set()
     if use_gitignore:
         gitignore_path = os.path.join(USER_CWD, ".gitignore")
         if os.path.isfile(gitignore_path):
             with open(gitignore_path, "r") as file:
                 gitignore_entries = {line.strip() for line in file}
+    return gitignore_entries
 
-    # Helper function to check if an item should be excluded based on .gitignore
-    def is_excluded(item_path):
-        rel_path = os.path.relpath(item_path, USER_CWD)
-        rel_path = os.path.normpath(rel_path).replace(os.sep, "/")
-        if rel_path in gitignore_entries or f"{rel_path}/" in gitignore_entries:
-            return True
-        return any(
-            entry.endswith("/") and rel_path.startswith(entry)
-            for entry in gitignore_entries
-        )
 
-    # Helper function to build the file tree
+def is_excluded(item_path, gitignore_entries):
+    """
+    Checks if a file/directory should be excluded based on .gitignore entries.
+    
+    Args:
+        item_path (str): The path of the item to check.
+        gitignore_entries (set): A set of .gitignore entries.
+
+    Returns:
+        bool: True if the item should be excluded, False otherwise.
+    """
+    rel_path = os.path.relpath(item_path, USER_CWD)
+    rel_path = os.path.normpath(rel_path).replace(os.sep, "/")
+    if rel_path in gitignore_entries or f"{rel_path}/" in gitignore_entries:
+        return True
+    return any(entry.endswith("/") and rel_path.startswith(entry) for entry in gitignore_entries)
+
+
+def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
+    """
+    Builds a list of files and directories in the current working directory.
+
+    Args:
+        use_gitignore (bool): Whether to respect the .gitignore file.
+        ignore_all_hidden (bool): Whether to ignore all hidden files and directories.
+
+    Returns:
+        str: A formatted string representing the file tree.
+    """
+    output = []
+    gitignore_entries = load_gitignore_entries(use_gitignore)
+
     def tree(dir_path, indent=""):
         try:
             dir_content = [
-                item
-                for item in os.listdir(dir_path)
-                if not item.startswith(".git")
-                and (not ignore_all_hidden or not item.startswith("."))
+                item for item in os.listdir(dir_path)
+                if not item.startswith(".git") and (not ignore_all_hidden or not item.startswith("."))
             ]
             dir_content.sort()
             for item in dir_content:
                 item_path = os.path.join(dir_path, item)
-                if not is_excluded(item_path):
+                if not is_excluded(item_path, gitignore_entries):
                     rel_path = os.path.relpath(item_path, USER_CWD)
                     rel_path = os.path.normpath(rel_path).replace(os.sep, "/")
                     if os.path.isdir(item_path):
@@ -91,9 +133,17 @@ def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
 
 
 def write_file(file_path, content):
-    print(
-        f"{PrintStyle.CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
-    )
+    """
+    Writes content to a file, creating directories if necessary.
+    
+    Args:
+        file_path (str): The path of the file to write (relative to the current working directory).
+        content (str): The content to write to the file.
+    
+    Returns:
+        str: A success message indicating that the file was written successfully.
+    """
+    print(f"{PrintStyle.CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}")
     file_path = os.path.join(USER_CWD, file_path)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, "w", encoding="utf-8") as file:
@@ -102,9 +152,16 @@ def write_file(file_path, content):
 
 
 def read_file(file_path):
-    print(
-        f"{PrintStyle.CYAN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}"
-    )
+    """
+    Reads the content of a file.
+    
+    Args:
+        file_path (str): The path of the file to read (relative to the current working directory).
+    
+    Returns:
+        str: The content of the file or an error message if the file is not found.
+    """
+    print(f"{PrintStyle.CYAN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}")
     file_path = os.path.join(USER_CWD, file_path)
     try:
         with open(file_path, "r") as file:
@@ -114,6 +171,175 @@ def read_file(file_path):
         return f"File '{file_path}' not found."
 
 
+class Agent:
+    """Agent for handling user queries related to terminal commands and other tasks."""
+
+    def __init__(self, model: Literal["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4-turbo", 
+                 use_memory=False, view_list_dir=False, always_allow=False) -> None:
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        self.model = model
+        self.use_memory = use_memory
+        self.chat = []
+        if self.use_memory:
+            self.load_memory()
+        self.view_list_dir = view_list_dir
+        self.always_allow = always_allow
+        self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
+
+    def get_tool_call_message(self, tool_call):
+        """
+        Generates a message for a tool call.
+
+        Args:
+            tool_call (dict): Tool call information.
+
+        Returns:
+            str: A formatted message describing the tool call.
+        """
+        tool_name = tool_call["tool_name"]
+        args = json.loads(tool_call["args_json"])
+        if tool_name == "file_writer":
+            file_name = args["file_path"]
+            content = args["content"]
+            return f"GPT wants to create the file '{file_name}' with this content:\n\n{content}"
+        elif tool_name == "file_reader":
+            file_name = args["file_path"]
+            return f"GPT wants to open and read '{file_name}'"
+        else:
+            return ""
+
+    def process_tool_call(self, tool_call):
+        """
+        Processes a tool call and executes the corresponding function.
+
+        Args:
+            tool_call (dict): Tool call information.
+
+        Returns:
+            str: The result of the tool execution.
+        """
+        tool_name = tool_call["tool_name"]
+        args = json.loads(tool_call["args_json"])
+        if tool_name == "file_writer":
+            file_name = args["file_path"]
+            content = args["content"]
+            result = write_file(file_name, content)
+        elif tool_name == "file_reader":
+            file_name = args["file_path"]
+            result = read_file(file_name)
+        else:
+            return False
+
+        return result
+
+    def run(self, query: str) -> None:
+        """
+        Runs the agent with the provided user query.
+
+        Args:
+            query (str): The user's query.
+        """
+        self.chat.append({"role": "user", "content": query})
+        full_system_prompt = f"""{self.system_prompt}"""
+
+        if self.view_list_dir:
+            files_tree = get_files_dirs()
+            full_system_prompt += f"\n\nHere's a list of files and directories in the current working directory:\n\n{files_tree}"
+
+        if self.use_memory:
+            _messages = self.memory + self.chat
+        else:
+            _messages = self.chat
+
+        _messages = _messages[-MEMORY_MAX:]
+
+        stream = self.client.chat.completions.create(
+            max_tokens=4096,
+            messages=[
+                {
+                    "role": "system",
+                    "content": full_system_prompt,
+                }
+            ] + _messages,
+            model=self.model,
+            tools=[
+                FILE_WRITER_TOOL,
+                FILE_READER_TOOL,
+            ],
+            stream=True,
+        )
+
+        text_stream_content = ""
+        tool_calls = {}
+        tool_call_detected = False
+        for chunk in stream:
+            if chunk.choices[0].delta.tool_calls:
+                for tool_call in chunk.choices[0].delta.tool_calls:
+                    tool_call_detected = True
+                    if tool_call.index not in tool_calls:
+                        tool_calls[tool_call.index] = {
+                            "tool_name": tool_call.function.name,
+                            "args_json": "",
+                        }
+
+                        if text_stream_content:
+                            print("")
+                        print(f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}", flush=True)
+
+                    tool_calls[tool_call.index]["args_json"] += tool_call.function.arguments
+
+            text = chunk.choices[0].delta.content
+            if text:
+                text_stream_content += text
+                print(text, end="", flush=True)
+
+        if text_stream_content and not tool_call_detected:
+            print("")
+
+        if tool_call_detected:
+            for index, tool_call in tool_calls.items():
+                if not self.always_allow:
+                    print(f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}")
+                    tool_confirmation = input(f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}")
+                if self.always_allow or tool_confirmation.lower() == "y":
+                    try:
+                        tool_result = self.process_tool_call(tool_call)
+                        if tool_result:
+                            text_stream_content += f"\n\n{tool_result}"
+                        print(f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}")
+                    except Exception as e:
+                        print(f"{PrintStyle.RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}")
+                else:
+                    print(f"{PrintStyle.YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}")
+
+        message = text_stream_content
+        if message:
+            self.chat.append({"role": "assistant", "content": message})
+
+        if self.use_memory:
+            self.save_memory()
+
+    def save_memory(self) -> None:
+        """
+        Saves the conversation memory to a file.
+        """
+        memory = (self.memory + self.chat)[-MEMORY_MAX:]
+        with open(MEMORY_FILE, "w") as f:
+            json.dump(memory, f)
+
+    def load_memory(self) -> None:
+        """
+        Loads the conversation memory from a file.
+        """
+        self.chat = []
+        if os.path.exists(MEMORY_FILE):
+            with open(MEMORY_FILE, "r") as f:
+                self.memory = json.load(f)
+        else:
+            self.memory = []
+
+
+# Tool definitions for integration with the OpenAI agent
 FILE_WRITER_TOOL = {
     "type": "function",
     "function": {
@@ -153,186 +379,3 @@ FILE_READER_TOOL = {
         },
     },
 }
-
-
-class Agent:
-    def __init__(
-        self,
-        model: Literal["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4-turbo",
-        use_memory=False,
-        view_list_dir=False,
-        always_allow=False,
-    ) -> None:
-        self.client = OpenAI(
-            api_key=os.environ.get("OPENAI_API_KEY"),
-        )
-        self.model = model
-        self.use_memory = use_memory
-        self.chat = []
-        if self.use_memory:
-            self.load_memory()
-        self.view_list_dir = view_list_dir
-        self.always_allow = always_allow
-        self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
-
-    def get_tool_call_message(self, tool_call):
-        tool_name = tool_call["tool_name"]
-        args = json.loads(tool_call["args_json"])
-        if tool_name == "file_writer":
-            file_name = args["file_path"]
-            content = args["content"]
-            return f"GPT wants to create the file '{file_name}' with this content:\n\n{content}"
-        elif tool_name == "file_reader":
-            file_name = args["file_path"]
-            return f"GPT wants to open and read '{file_name}'"
-        else:
-            return ""
-
-    def process_tool_call(self, tool_call):
-        tool_name = tool_call["tool_name"]
-        args = json.loads(tool_call["args_json"])
-        if tool_name == "file_writer":
-            file_name = args["file_path"]
-            content = args["content"]
-            result = write_file(file_name, content)
-        elif tool_name == "file_reader":
-            file_name = args["file_path"]
-            result = read_file(file_name)
-        else:
-            return False
-
-        return result
-
-    def run(self, query: str) -> None:
-        self.chat.append({"role": "user", "content": query})
-
-        full_system_prompt = f"""{self.system_prompt}"""
-
-        if self.view_list_dir:
-            files_tree = get_files_dirs()
-            full_system_prompt += f"\n\nHere's a list of files and directories in the current working directory:\n\n{files_tree}"
-
-        if self.use_memory:
-            _messages = self.memory + self.chat
-        else:
-            _messages = self.chat
-
-        _messages = _messages[-MEMORY_MAX:]
-
-        stream = self.client.chat.completions.create(
-            max_tokens=4096,
-            messages=[
-                {
-                    "role": "system",
-                    "content": full_system_prompt,
-                }
-            ]
-            + _messages,
-            model=self.model,
-            tools=[
-                FILE_WRITER_TOOL,
-                FILE_READER_TOOL,
-            ],
-            stream=True,
-        )
-
-        text_stream_content = ""
-        tool_calls = {}
-        tool_call_detected = False
-        for chunk in stream:
-            if chunk.choices[0].delta.tool_calls:
-                for tool_call in chunk.choices[0].delta.tool_calls:
-                    tool_call_detected = True
-                    if tool_call.index not in tool_calls:
-                        tool_calls[tool_call.index] = {
-                            "tool_name": tool_call.function.name,
-                            "args_json": "",
-                        }
-
-                        if text_stream_content:
-                            print("")
-
-                        print(
-                            f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}",
-                            flush=True,
-                        )
-
-                    tool_calls[tool_call.index][
-                        "args_json"
-                    ] += tool_call.function.arguments
-
-            text = chunk.choices[0].delta.content
-            if text:
-                text_stream_content += text
-
-                print(text, end="", flush=True)
-        if text_stream_content and not tool_call_detected:
-            print("")
-
-        if tool_call_detected:
-            for index, tool_call in tool_calls.items():
-                if not self.always_allow:
-                    print(
-                        f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
-                    )
-                    tool_confirmation = input(
-                        f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
-                    )
-                if self.always_allow or tool_confirmation.lower() == "y":
-                    try:
-                        tool_result = self.process_tool_call(tool_call)
-                        if tool_result:
-                            text_stream_content += f"\n\n{tool_result}"
-                        print(
-                            f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
-                        )
-                    except Exception as e:
-                        print(
-                            f"{PrintStyle.RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
-                        )
-                else:
-                    print(
-                        f"{PrintStyle.YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
-                    )
-
-        message = text_stream_content
-        if message:
-            self.chat.append({"role": "assistant", "content": message})
-
-        if self.use_memory:
-            self.save_memory()
-
-    def save_memory(self) -> None:
-        memory = (self.memory + self.chat)[-MEMORY_MAX:]
-        with open(MEMORY_FILE, "w") as f:
-            json.dump(memory, f)
-
-    def load_memory(self) -> None:
-        self.chat = []
-        if os.path.exists(MEMORY_FILE):
-            with open(MEMORY_FILE, "r") as f:
-                self.memory = json.load(f)
-        else:
-            self.memory = []
-
-
-class PrintStyle(Enum):
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
-    BOLD = "\033[1m"
-    UNDERLINE = "\033[4m"
-    INVERT = "\033[7m"
-    STRIKETHROUGH = "\033[9m"
-    BOLD_END = "\033[21m"
-    UNDERLINE_END = "\033[24m"
-    INVERT_END = "\033[27m"
-    STRIKETHROUGH_END = "\033[29m"
-    RESET = "\033[0m"
-
-
-# User's input style prefix
-USER_STYLE_PREFIX = f"{PrintStyle.BLUE.value}"

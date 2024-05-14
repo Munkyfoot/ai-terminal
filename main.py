@@ -2,11 +2,16 @@ import argparse
 
 from utils import USER_STYLE_PREFIX, Agent, PrintStyle
 
-if __name__ == "__main__":
-    # Create an argument parser
+
+def create_argument_parser():
+    """
+    Create and return the argument parser for the script.
+
+    Returns:
+        argparse.ArgumentParser: Configured argument parser.
+    """
     parser = argparse.ArgumentParser(description="Chat with an AI.")
 
-    # Add arguments
     parser.add_argument("query", nargs="*", default=None, help="Optional initial query")
     parser.add_argument(
         "--memory", "-m", action="store_true", help="Use history to improve responses"
@@ -24,19 +29,50 @@ if __name__ == "__main__":
         help="Automatically allow all file and directory reads and writes",
     )
 
-    # Parse the command-line arguments
-    args = parser.parse_args()
+    return parser
 
-    # Check if an initial query was provided
-    has_initial_query = bool(args.query)
 
-    # Create an Agent instance with the specified memory usage
-    agent = Agent(
+def initialize_agent(args):
+    """
+    Initialize and return an Agent instance based on script arguments.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+
+    Returns:
+        Agent: Configured Agent instance.
+    """
+    return Agent(
         model="gpt-4o",
         use_memory=args.memory,
         view_list_dir=args.ls,
         always_allow=args.always_allow,
     )
+
+
+def handle_query(agent, query):
+    """
+    Process the user's query with the agent.
+
+    Args:
+        agent (Agent): The agent instance to handle the query.
+        query (str): The user's query.
+
+    Returns:
+        str: The agent's response.
+    """
+    return agent.run(query)
+
+
+def main():
+    """
+    Main function to run the chat application.
+    """
+    parser = create_argument_parser()
+    args = parser.parse_args()
+
+    has_initial_query = bool(args.query)
+    agent = initialize_agent(args)
 
     while True:
         try:
@@ -52,12 +88,12 @@ if __name__ == "__main__":
                     break
                 print(PrintStyle.RESET.value, end="")
 
-            # Run the agent with the user's query
-            response = agent.run(query)
+            # Handle the user's query
+            handle_query(agent, query)
 
         except KeyboardInterrupt:
             # Handle keyboard interruption (Ctrl+C)
-            # Clear the line and any styles and continue
+            # Clear the line and any styles and exit
             print("\033[K", end="\r")
             break
 
@@ -68,3 +104,7 @@ if __name__ == "__main__":
 
     # Clear any styles before exiting
     print(PrintStyle.RESET.value, end="")
+
+
+if __name__ == "__main__":
+    main()
