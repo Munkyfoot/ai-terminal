@@ -10,6 +10,7 @@ AI Terminal is a Python-based command-line interface (CLI) tool that allows you 
 - **Memory Utilization**: Optionally save and load conversation history to improve response quality over time.
 - **File Operations**: Perform file reading and writing based on your interactions.
 - **File and Directory Listing**: Optionally show a list of files and directories in the current working directory (excluding those in the `.gitignore`). These files and directories are shown to the GPT model for providing relevant assistance.
+- **Run Python Code**: Execute Python code snippets directly in the terminal.
 
 ## Prerequisites
 
@@ -122,7 +123,7 @@ python main.py [query] [flags]
 5. Always allow file operations without confirmation:
 
    ```bash
-    python main.py "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   python main.py "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
    ```
 
 ## Setting Up for Command Line Alias (`ask`)
@@ -202,13 +203,13 @@ ask "How can I list files in a directory?" --memory --ls
 4. Show files and directories:
 
    ```bash
-    ask "What files are present in the current directory?" --ls
+   ask "What files are present in the current directory?" --ls
    ```
 
 5. Always allow file operations without confirmation:
 
    ```bash
-    ask "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   ask "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
    ```
 
 ## Contributing
