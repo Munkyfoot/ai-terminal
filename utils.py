@@ -280,9 +280,6 @@ class Agent:
                     )
                 if self.always_allow or tool_confirmation.lower() == "y":
                     try:
-                        print(
-                            f"{PrintStyle.CYAN.value}🛠 Executing tool...{PrintStyle.RESET.value}"
-                        )
                         tool_result = self.process_tool_call(tool_call)
                         if tool_result:
                             text_stream_content += f"\n\n{tool_result}"
