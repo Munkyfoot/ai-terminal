@@ -161,6 +161,7 @@ class Agent:
         model: Literal["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4-turbo",
         use_memory=False,
         view_list_dir=False,
+        always_allow=False,
     ) -> None:
         self.client = OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY"),
@@ -171,6 +172,7 @@ class Agent:
         if self.use_memory:
             self.load_memory()
         self.view_list_dir = view_list_dir
+        self.always_allow = always_allow
         self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
 
     def get_tool_call_message(self, tool_call):
@@ -251,7 +253,8 @@ class Agent:
                             print("")
 
                         print(
-                            f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}"
+                            f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}",
+                            flush=True,
                         )
 
                     tool_calls[tool_call.index][
@@ -268,13 +271,14 @@ class Agent:
 
         if tool_call_detected:
             for index, tool_call in tool_calls.items():
-                print(
-                    f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
-                )
-                tool_confirmation = input(
-                    f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
-                )
-                if tool_confirmation.lower() == "y":
+                if not self.always_allow:
+                    print(
+                        f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
+                    )
+                    tool_confirmation = input(
+                        f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
+                    )
+                if self.always_allow or tool_confirmation.lower() == "y":
                     try:
                         print(
                             f"{PrintStyle.CYAN.value}🛠 Executing tool...{PrintStyle.RESET.value}"

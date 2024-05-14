@@ -17,6 +17,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Show GPT all files and directories in the current directory (except those specified in the .gitignore file)",
     )
+    parser.add_argument(
+        "--always-allow",
+        "-a",
+        action="store_true",
+        help="Automatically allow all file and directory reads and writes",
+    )
 
     # Parse the command-line arguments
     args = parser.parse_args()
@@ -29,6 +35,7 @@ if __name__ == "__main__":
         model="gpt-4o",
         use_memory=args.memory,
         view_list_dir=args.ls,
+        always_allow=args.always_allow,
     )
 
     while True:
