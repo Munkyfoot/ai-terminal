@@ -96,7 +96,7 @@ def write_file(file_path, content):
     )
     file_path = os.path.join(USER_CWD, file_path)
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with open(file_path, "w") as file:
+    with open(file_path, "w", encoding="utf-8") as file:
         file.write(content)
     return f"File '{file_path}' written successfully."
 
@@ -277,21 +277,21 @@ class Agent:
                 if tool_confirmation.lower() == "y":
                     try:
                         print(
-                            f"{PrintStyle.CYAN.value}Executing tool...{PrintStyle.RESET.value}"
+                            f"{PrintStyle.CYAN.value}🛠 Executing tool...{PrintStyle.RESET.value}"
                         )
                         tool_result = self.process_tool_call(tool_call)
                         if tool_result:
                             text_stream_content += f"\n\n{tool_result}"
                         print(
-                            f"{PrintStyle.GREEN.value}Tool executed successfully.{PrintStyle.RESET.value}"
+                            f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
                         )
                     except Exception as e:
                         print(
-                            f"{PrintStyle.RED.value}Error executing tool: {e}{PrintStyle.RESET.value}"
+                            f"{PrintStyle.RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
                         )
                 else:
                     print(
-                        f"{PrintStyle.YELLOW.value}Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                        f"{PrintStyle.YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
                     )
 
         message = text_stream_content
