@@ -93,13 +93,14 @@ def is_excluded(item_path, gitignore_entries):
     )
 
 
-def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
+def get_files_dirs(use_gitignore=True, ignore_all_hidden=False, max_depth=1):
     """
     Builds a list of files and directories in the current working directory.
 
     Args:
         use_gitignore (bool): Whether to respect the .gitignore file.
         ignore_all_hidden (bool): Whether to ignore all hidden files and directories.
+        max_depth (int): Maximum depth of the directory tree to traverse.
 
     Returns:
         str: A formatted string representing the file tree.
@@ -107,7 +108,10 @@ def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
     output = []
     gitignore_entries = load_gitignore_entries(use_gitignore)
 
-    def tree(dir_path, indent=""):
+    def tree(dir_path, indent="", current_depth=0):
+        if current_depth > max_depth:
+            return
+
         try:
             dir_content = [
                 item
@@ -123,7 +127,7 @@ def get_files_dirs(use_gitignore=True, ignore_all_hidden=False):
                     rel_path = os.path.normpath(rel_path).replace(os.sep, "/")
                     if os.path.isdir(item_path):
                         output.append(f"{indent}{rel_path}/")
-                        tree(item_path, indent + "  ")
+                        tree(item_path, indent + "  ", current_depth + 1)
                     else:
                         output.append(f"{indent}{rel_path}")
         except PermissionError:
