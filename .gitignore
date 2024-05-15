@@ -4,5 +4,7 @@ ask.bat
 memory.json
 *.log
 
+defaults.json
+
 __pycache__/
 venv/
