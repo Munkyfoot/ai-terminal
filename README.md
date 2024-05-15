@@ -142,10 +142,10 @@ python main.py [query] [flags]
    nano ~/.zshrc
    ```
 
-2. Add the following line to create an alias:
+2. Add the following lines to create an alias that activates the virtual environment, runs the command, and then deactivates the virtual environment:
 
    ```bash
-   alias ask='python /path/to/your/project/main.py'
+   alias ask='source /path/to/your/project/venv/bin/activate && python /path/to/your/project/main.py "$@" && deactivate'
    ```
 
 3. Save the file and reload the shell configuration:
@@ -168,10 +168,13 @@ python main.py [query] [flags]
    setx PATH "%PATH%;C:\path\to\your\project"
    ```
 
-2. Create a batch file named `ask.bat` in a directory included in your system `PATH`:
+2. Create a batch file named `ask.bat` in a directory included in your system `PATH`. Ensure it activates the virtual environment, runs the command, and then deactivates the virtual environment:
 
    ```batch
-   echo python C:\path\to\your\project\main.py %* > C:\path\to\your\project\ask.bat
+   echo @echo off > C:\path\to\your\project\ask.bat
+   echo call C:\path\to\your\project\venv\Scripts\activate >> C:\path\to\your\project\ask.bat
+   echo python C:\path\to\your\project\main.py %* >> C:\path\to\your\project\ask.bat
+   echo call C:\path\to\your\project\venv\Scripts\deactivate >> C:\path\to\your\project\ask.bat
    ```
 
 Now you can use the `ask` command from any location in the terminal:
