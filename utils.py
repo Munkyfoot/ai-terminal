@@ -220,7 +220,10 @@ class Agent:
             self.load_memory()
         self.view_list_dir = view_list_dir
         self.always_allow = always_allow
-        self.system_prompt = f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
+        self.system_prompt = (
+            f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
+            + "\n\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, simply acknowledge the request and use the tool directly to perform the task."
+        )
 
     def get_tool_call_message(self, tool_call):
         """
