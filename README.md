@@ -93,37 +93,51 @@ python main.py [query] [flags]
   - `--memory` or `-m`: Save/load conversation history to add long-term memory to the conversation.
   - `--ls` or `-l`: Show files and directories in the current working directory.
   - `--always-allow` or `-a`: Always allow file operations without confirmation.
+  - `--save-defaults` or `-S`: Save the current flag values as defaults for future runs.
+  - `--reset-defaults` or `-R`: Reset the flags to their original defaults.
 
 ### Examples:
 
-1. Start AI Terminal without an initial query:
+1. **Start AI Terminal without an initial query:**
 
    ```bash
    python main.py
    ```
 
-2. Provide an initial query:
+2. **Provide an initial query:**
 
    ```bash
    python main.py "How can I list files in a directory?"
    ```
 
-3. Use memory to save/load conversation history:
+3. **Use memory to save/load conversation history:**
 
    ```bash
    python main.py "Do you remember our previous conversation?" --memory
    ```
 
-4. Show files and directories to the GPT model for assistance:
+4. **Show files and directories to the GPT model for assistance:**
 
    ```bash
    python main.py "What files are present in the current directory?" --ls
    ```
 
-5. Always allow file operations without confirmation:
+5. **Always allow file operations without confirmation:**
 
    ```bash
    python main.py "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   ```
+
+6. **Save the current flag values as defaults:**
+
+   ```bash
+   python main.py --ls --memory --save-defaults
+   ```
+
+7. **Reset the flags to their original defaults:**
+
+   ```bash
+   python main.py --reset-defaults
    ```
 
 ## Setting Up for Command Line Alias (`ask`)
@@ -213,6 +227,18 @@ ask "How can I list files in a directory?" --memory --ls
 
    ```bash
    ask "Write a file named 'test.txt' with the content 'Hello, World!'" --always-allow
+   ```
+
+6. Save the current flag values as defaults:
+
+   ```bash
+   ask --ls --memory --save-defaults
+   ```
+
+7. Reset the flags to their original defaults:
+
+   ```bash
+   ask --reset-defaults
    ```
 
 ## Contributing
