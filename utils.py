@@ -12,7 +12,7 @@ from openai import OpenAI
 load_dotenv()
 
 # Constants
-MEMORY_FILE = "memory.json"
+MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "memory.json"))
 MEMORY_MAX = 24  # Limit for messages stored in memory
 
 # User's platform and environment information

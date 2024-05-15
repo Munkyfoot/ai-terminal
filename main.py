@@ -4,7 +4,9 @@ import os
 
 from utils import USER_STYLE_PREFIX, Agent, PrintStyle
 
-DEFAULTS_FILE = "defaults.json"
+DEFAULTS_FILE = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "defaults.json")
+)
 
 
 def create_argument_parser():
@@ -100,7 +102,7 @@ def main():
     """
     parser = create_argument_parser()
     args = parser.parse_args()
-
+    
     defaults = load_defaults()
 
     # Apply defaults if they exist and flags are not explicitly set
