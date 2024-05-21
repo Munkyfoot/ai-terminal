@@ -1,24 +1,24 @@
-# AI Terminal 🚀
+# AI Terminal
 
-AI Terminal is a versatile Python-based command-line interface (CLI) tool that unlocks the power of OpenAI's models right from your terminal. It allows you to interact with AI models, perform file operations, and execute Python code snippets directly from the terminal.
+AI Terminal is a Python-based command-line tool, enabling interaction with OpenAI models straight from your terminal. The AI can read and write files, execute Python code, answer questions, and more. By default, it requires your confirmation before performing file operations and executing Python code - though this can be changed with caution. You can also optionally save and load conversation history.
 
-## ✨ Features
+## Features
 
-- **Direct AI Interaction:** Chat directly with OpenAI's AI models from your terminal.
-- **Platform-Specific Commands:** Seamlessly supports terminal commands for Windows, macOS, and Linux.
-- **Coding Assistance:** Get in-terminal help for coding tasks.
-- **Memory Utilization:** Optionally save and load conversation history to personalize and improve interactions.
-- **File Operations:** Perform file reading and writing based on user interactions.
-- **Directory Insight:** Let AI Terminal see the files and directories within your current working directory.
-- **Python Execution:** Run Python code snippets directly from the terminal.
+- **Direct AI Interaction:** Engage with OpenAI's AI models via terminal.
+- **Cross-Platform Commands:** Supports Windows, macOS, and Linux.
+- **Coding Assistance:** Help for programming tasks within the terminal.
+- **Memory Utilization:** Option to save and load conversation history.
+- **File Operations:** Read and write files based on user interaction.
+- **Directory Insight:** View files and directories within your current directory.
+- **Python Execution:** Run Python code snippets directly in terminal.
 
-## 🔧 Prerequisites
+## Prerequisites
 
-- Python 3.7 or higher
+- Python 3.7+
 - pip (Python Package Installer)
 - OpenAI API key
 
-## 📦 Installation
+## Installation
 
 1. **Clone the repository:**
 
@@ -72,23 +72,33 @@ AI Terminal is a versatile Python-based command-line interface (CLI) tool that u
    OPENAI_API_KEY="YOUR_API_KEY"
    ```
 
-## 🚀 Usage
+## Usage
 
-To run AI Terminal, enter:
+Launch AI Terminal with:
 
 ```bash
 python main.py [query] [flags]
 ```
 
+Or use the command line alias:
+
+```bash
+ask [query] [flags]
+```
+
+_See [Command Line Alias](#command-line-alias-ask) for more details._
+
+The query can be a question, command, or code snippet. The flags are optional and can be used to enable memory, file operations, directory insight, and more.
+
 ### Options:
 
-- `query` (optional): Initial question or command to start the conversation.
+- `query` (optional): Initial question or command.
 - `flags`:
-  - `--memory` or `-m`: Save/load conversation history to add long-term memory.
-  - `--ls` or `-l`: Let AI Terminal see the files and directories in the current working directory.
-  - `--always-allow` or `-a`: Execute file operations without requiring confirmation.
-  - `--save-defaults` or `-S`: Save these flags as defaults for future runs.
-  - `--reset-defaults` or `-R`: Revert the flags to their original defaults.
+  - `--memory` | `-m`: Save/load conversation history.
+  - `--ls` | `-l`: Let AI Terminal view files and directories.
+  - `--always-allow` | `-a`: Execute file operations without confirmation.
+  - `--save-defaults` | `-S`: Save current flags as defaults.
+  - `--reset-defaults` | `-R`: Reset flags to default settings.
 
 ### Examples:
 
@@ -96,104 +106,94 @@ python main.py [query] [flags]
    ```bash
    python main.py
    ```
-2. **Provide an initial query:**
+2. **Initial query:**
    ```bash
    python main.py "How can I list files in a directory?"
    ```
-3. **Use memory for conversation history:**
+3. **Use memory:**
    ```bash
    python main.py "Do you remember our previous conversation?" --memory
    ```
-4. **Show files and directories to the GPT model:**
+4. **Show files and directories:**
    ```bash
    python main.py "What files are present in the current directory?" --ls
    ```
-5. **Always allow file operations without confirmation:**
+5. **Allow file operations without confirmation:**
    ```bash
    python main.py "Create a file named 'hello.txt' with 'Hello, World!' as content" --always-allow
    ```
-6. **Save the current flags as defaults:**
+6. **Save current flags as defaults:**
    ```bash
    python main.py --memory --ls --always-allow --save-defaults
    ```
-7. **Reset the flags to their original defaults:**
+7. **Reset flags to defaults:**
    ```bash
    python main.py --reset-defaults
    ```
 
-## 💡 Setting Up a Command Line Alias (`ask`)
+## Command Line Alias (`ask`)
 
 ### For Linux/macOS
 
-#### For Bash:
+#### Bash:
 
-1. **Edit your shell's configuration file (`.bashrc`):**
-
+1. **Edit shell configuration (`.bashrc`):**
    ```bash
    nano ~/.bashrc
    ```
-
-2. **Add an alias:**
-
+2. **Add alias:**
    ```bash
-   alias ask='source /path/to/your/project/venv/bin/activate && python /path/to/your/project/main.py "$@" && deactivate'
+   alias ask='source /path/to/project/venv/bin/activate && python /path/to/project/main.py "$@" && deactivate'
    ```
-
-3. **Apply the changes:**
+3. **Apply changes:**
    ```bash
    source ~/.bashrc
    ```
 
-#### For Zsh:
+#### Zsh:
 
-1. **Edit your shell's configuration file (`.zshrc`):**
-
+1. **Edit shell configuration (`.zshrc`):**
    ```bash
    nano ~/.zshrc
    ```
-
-2. **Add a function:**
-
+2. **Add function:**
    ```zsh
    function ask() {
-       source /path/to/your/project/venv/bin/activate
-       python /path/to/your/project/main.py "$@"
+       source /path/to/project/venv/bin/activate
+       python /path/to/project/main.py "$@"
        deactivate
    }
    ```
-
-3. **Apply the changes:**
+3. **Apply changes:**
    ```bash
    source ~/.zshrc
    ```
 
 ### For Windows
 
-1. **Add project directory to system PATH:**
-
+1. **Add project directory to PATH:**
    ```cmd
-   setx PATH "%PATH%;C:\path\to\your\project"
+   setx PATH "%PATH%;C:\path\to\project"
+   ```
+2. **Create batch file (`ask.bat`) in PATH:**
+   ```cmd
+   echo @echo off > C:\path\to\project\ask.bat
+   echo call C:\path\to\project\venv\Scripts\activate >> C:\path\to\project\ask.bat
+   echo python C:\path\to\project\main.py %* >> C:\path\to\project\ask.bat
+   echo call C:\path\to\project\venv\Scripts\deactivate >> C:\path\to\project\ask.bat
    ```
 
-2. **Create a batch file (`ask.bat`) in a directory in your PATH:**
-   ```cmd
-   echo @echo off > C:\path\to\your\project\ask.bat
-   echo call C:\path\to\your\project\venv\Scripts\activate >> C:\path\to\your\project\ask.bat
-   echo python C:\path\to\your\project\main.py %* >> C:\path\to\your\project\ask.bat
-   echo call C:\path\to\your\project\venv\Scripts\deactivate >> C:\path\to\your\project\ask.bat
-   ```
-
-### Using the `ask` Command:
+### Using `ask` Command:
 
 1. **Run without initial query:**
    ```bash
    ask
    ```
-2. **Ask a general question:**
+2. **General question:**
    ```bash
    ask "What's the weather today?"
    ```
-3. **Use memory flag:**
+3. **Use memory:**
    ```bash
    ask "Remember my last question?" --memory
    ```
@@ -201,27 +201,27 @@ python main.py [query] [flags]
    ```bash
    ask "What files are in this directory?" --ls
    ```
-5. **Always allow file operations:**
+5. **Allow file operations without confirmation:**
    ```bash
    ask "Create a file named 'hello.txt' with 'Hello, World!' as content" --always-allow
    ```
-6. **Save the current flags as defaults:**
+6. **Save current flags as defaults:**
    ```bash
    ask --memory --ls --always-allow --save-defaults
    ```
-7. **Reset the flags to their original defaults:**
+7. **Reset flags to defaults:**
    ```bash
    ask --reset-defaults
    ```
 
-## 🤝 Contributing
+## Contributing
 
 1. **Fork the repository.**
 2. **Create a feature branch (`git checkout -b feature/AmazingFeature`).**
-3. **Commit your changes (`git commit -m 'Add some AmazingFeature'`).**
-4. **Push to the branch (`git push origin feature/AmazingFeature`).**
+3. **Commit changes (`git commit -m 'Add AmazingFeature'`).**
+4. **Push to branch (`git push origin feature/AmazingFeature`).**
 5. **Open a pull request.**
 
-## 📜 License
+## License
 
-Distributed under the MIT License. See `LICENSE` for more details.
+Distributed under the MIT License. See `LICENSE` for details.
