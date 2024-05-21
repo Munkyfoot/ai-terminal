@@ -175,7 +175,7 @@ def read_file(file_path):
     )
     file_path = os.path.join(USER_CWD, file_path)
     try:
-        with open(file_path, "r") as file:
+        with open(file_path, "r", encoding="utf-8") as file:
             content = file.read()
         return f"Content of file '{file_path}':\n\n{content}"
     except FileNotFoundError:
