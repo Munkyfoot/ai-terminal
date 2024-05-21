@@ -125,10 +125,12 @@ python main.py [query] [flags]
 
 ### For Linux/macOS
 
-1. **Edit your shell's configuration file (`.bashrc` or `.zshrc`):**
+#### For Bash:
+
+1. **Edit your shell's configuration file (`.bashrc`):**
 
    ```bash
-   nano ~/.bashrc  # or ~/.zshrc
+   nano ~/.bashrc
    ```
 
 2. **Add an alias:**
@@ -139,7 +141,30 @@ python main.py [query] [flags]
 
 3. **Apply the changes:**
    ```bash
-   source ~/.bashrc  # or ~/.zshrc
+   source ~/.bashrc
+   ```
+
+#### For Zsh:
+
+1. **Edit your shell's configuration file (`.zshrc`):**
+
+   ```bash
+   nano ~/.zshrc
+   ```
+
+2. **Add a function:**
+
+   ```zsh
+   function ask() {
+       source /path/to/your/project/venv/bin/activate
+       python /path/to/your/project/main.py "$@"
+       deactivate
+   }
+   ```
+
+3. **Apply the changes:**
+   ```bash
+   source ~/.zshrc
    ```
 
 ### For Windows
