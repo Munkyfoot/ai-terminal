@@ -432,9 +432,25 @@ class Agent:
                         print(
                             f"{PrintStyle.RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
                         )
+                        self.chat.append(
+                            {
+                                "tool_call_id": tool_call["tool_call_id"],
+                                "role": "tool",
+                                "name": tool_call["tool_name"],
+                                "content": f"Error executing tool: {e}",
+                            }
+                        )
                 else:
                     print(
                         f"{PrintStyle.YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                    )
+                    self.chat.append(
+                        {
+                            "tool_call_id": tool_call["tool_call_id"],
+                            "role": "tool",
+                            "name": tool_call["tool_name"],
+                            "content": "User cancelled the tool execution.",
+                        }
                     )
 
         if self.use_memory:
