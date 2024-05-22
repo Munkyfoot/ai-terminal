@@ -198,9 +198,9 @@ def run_python_code(code):
             ["python", "-c", code], stderr=subprocess.STDOUT, text=True
         )
         return (
-            f"Python code executed successfully." + f"\n\nOutput:\n\n{output}"
+            f"Python code executed successfully.\n\nOutput:\n\n{output}"
             if output
-            else ""
+            else "Python code executed successfully."
         )
     except subprocess.CalledProcessError as e:
         return f"Error executing Python code:\n\n{e.output}"
