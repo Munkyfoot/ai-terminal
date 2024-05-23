@@ -1,12 +1,13 @@
 import json
 import os
-import sys
 import subprocess
+import sys
 from enum import Enum
 from typing import Literal
 
 from dotenv import load_dotenv
 from openai import OpenAI
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 # Load environment variables from the .env file
 load_dotenv()
@@ -326,23 +327,41 @@ class Agent:
 
         _messages = _messages[-MEMORY_MAX:]
 
-        stream = self.client.chat.completions.create(
-            max_tokens=4096,
-            messages=[
-                {
-                    "role": "system",
-                    "content": full_system_prompt,
-                }
-            ]
-            + _messages,
-            model=self.model,
-            tools=[
-                FILE_WRITER_TOOL,
-                FILE_READER_TOOL,
-                PYTHON_EXECUTOR_TOOL,
-            ],
-            stream=True,
+        @retry(
+            wait=wait_random_exponential(min=2, max=60),
+            stop=stop_after_attempt(3),
+            after=lambda retry_state: print(
+                f"{PrintStyle.YELLOW.value}⚠ Unable to get response. Trying again... (Attempt {retry_state.attempt_number}/3){PrintStyle.RESET.value}"
+            ),
+            reraise=True,
         )
+        def get_stream():
+            stream = self.client.chat.completions.create(
+                max_tokens=4092,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": full_system_prompt,
+                    }
+                ]
+                + _messages,
+                model=self.model,
+                tools=[
+                    FILE_WRITER_TOOL,
+                    FILE_READER_TOOL,
+                    PYTHON_EXECUTOR_TOOL,
+                ],
+                stream=True,
+            )
+            return stream
+
+        try:
+            stream = get_stream()
+        except Exception as e:
+            print(
+                f"{PrintStyle.RED.value}⚠ Error getting response: {e}{PrintStyle.RESET.value}"
+            )
+            return
 
         text_stream_content = ""
         tool_calls = {}
