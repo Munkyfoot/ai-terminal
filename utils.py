@@ -376,11 +376,10 @@ class Agent:
                             "tool_name": tool_call.function.name,
                             "args_json": "",
                         }
-
-                        if text_stream_content:
-                            print("")
                         print(
+                            "\n" if text_stream_content else "",
                             f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}",
+                            sep="",
                             flush=True,
                         )
 
@@ -394,7 +393,7 @@ class Agent:
                 print(text, end="", flush=True)
 
         if text_stream_content and not tool_call_detected:
-            print("")
+            print("", flush=True)
 
         response_message = {
             "role": "assistant",
