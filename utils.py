@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import sys
 from enum import Enum
@@ -33,12 +34,22 @@ USER_INFO = f"""User's Information:
 
 # Enum for console text styles
 class PrintStyle(Enum):
-    RED = "\033[91m"
-    GREEN = "\033[92m"
-    YELLOW = "\033[93m"
-    BLUE = "\033[94m"
-    MAGENTA = "\033[95m"
-    CYAN = "\033[96m"
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    GRAY = "\033[90m"
+    WHITE = "\033[37m"
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
+    BRIGHT_MAGENTA = "\033[95m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_GRAY = "\033[90m"
+    BRIGHT_WHITE = "\033[97m"
     BOLD = "\033[1m"
     UNDERLINE = "\033[4m"
     INVERT = "\033[7m"
@@ -50,8 +61,69 @@ class PrintStyle(Enum):
     RESET = "\033[0m"
 
 
+# Patterns and their corresponding ANSI color codes
+HIGHLIGHT_PATTERNS = [
+    (
+        r"\b(def|class|lambda|True|False|None)\b",
+        PrintStyle.BLUE.value,
+    ),  # Keywords
+    (
+        r"\b(if|elif|else|try|except|finally|for|while|break|continue|return|import|from|as|pass|raise|with|yield|and|or|not|is|in)\b",
+        PrintStyle.MAGENTA.value,
+    ),  # Keywords
+    (
+        r"\b(int|float|str|list|dict|set|tuple|bool|bytes|object|type|super|range|print|len|input|open|exec|eval|dir|vars|locals|globals|staticmethod|classmethod|property|Exception|BaseException|AssertionError|AttributeError|EOFError|FloatingPointError|GeneratorExit|ImportError|IndexError|KeyError|KeyboardInterrupt|MemoryError|NameError|NotImplementedError|OSError|OverflowError|ReferenceError|RuntimeError|StopIteration|SyntaxError|IndentationError|TabError|SystemError|SystemExit|TypeError|UnboundLocalError|ValueError|ZeroDivisionError)\b",
+        PrintStyle.GREEN.value,
+    ),  # Built-in functions and exceptions
+    (
+        r"(?<=\s|\.)[a-zA-Z_][a-zA-Z0-9_]*(?=\()",
+        PrintStyle.YELLOW.value,
+    ),  # Catch all function calls
+    (
+        r"(\"\"\".*?\"\"\"|\'\'\'.*?\'\'\')",
+        PrintStyle.RED.value,
+    ),  # Triple-quoted strings
+    (
+        r"(\".*?\"|\'.*?\')",
+        PrintStyle.RED.value,
+    ),  # Single or double-quoted strings
+    (
+        r"#.*",
+        PrintStyle.GREEN.value,
+    ),  # Comments
+    (
+        r"\b([A-Z_][A-Z0-9_]*)\b",
+        PrintStyle.BOLD.value,
+    ),  # Constants in uppercase
+]
+
+
+def remove_ansi_escape_sequences(text):
+    """
+    Removes ANSI escape sequences from a text.
+
+    Args:
+        text (str): The text containing ANSI escape sequences.
+
+    Returns:
+        str: The text with ANSI escape sequences removed.
+    """
+    return re.sub(r"\033\[[0-9;]*m", "", text)
+
+
+# Function to apply highlighting to code
+def highlight_code(code):
+    for pattern, color in HIGHLIGHT_PATTERNS:
+        code = re.sub(
+            pattern,
+            lambda match: f"{color}{remove_ansi_escape_sequences(match.group(0))}{PrintStyle.RESET.value}",
+            code,
+        )
+    return code
+
+
 # User's input style prefix
-USER_STYLE_PREFIX = f"{PrintStyle.BLUE.value}"
+USER_STYLE_PREFIX = f"{PrintStyle.BRIGHT_BLUE.value}"
 
 
 def load_gitignore_entries(use_gitignore):
@@ -152,7 +224,7 @@ def write_file(file_path, content):
         str: A success message indicating that the file was written successfully.
     """
     print(
-        f"{PrintStyle.CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
+        f"{PrintStyle.BRIGHT_CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
     )
     file_path = os.path.join(USER_CWD, file_path)
     try:
@@ -175,7 +247,7 @@ def read_file(file_path):
         str: The content of the file or an error message if the file is not found.
     """
     print(
-        f"{PrintStyle.CYAN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}"
+        f"{PrintStyle.BRIGHT_CYAN.value}Reading file '{file_path}'...{PrintStyle.RESET.value}"
     )
     file_path = os.path.join(USER_CWD, file_path)
     try:
@@ -196,7 +268,9 @@ def run_python_code(code):
     Returns:
         str: The output of the Python code execution.
     """
-    print(f"{PrintStyle.CYAN.value}Executing Python code...{PrintStyle.RESET.value}")
+    print(
+        f"{PrintStyle.BRIGHT_CYAN.value}Executing Python code...{PrintStyle.RESET.value}"
+    )
     try:
         output = subprocess.check_output(
             ["python", "-c", code], stderr=subprocess.STDOUT, text=True
@@ -248,13 +322,13 @@ class Agent:
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
-            return f"GPT wants to create the file '{file_name}' with this content:\n\n{content}"
+            return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to create the file '{file_name}' with this content.{PrintStyle.RESET.value}"
         elif tool_name == "file_reader":
             file_name = args["file_path"]
-            return f"GPT wants to open and read '{file_name}'"
+            return f"{PrintStyle.BRIGHT_CYAN.value}GPT wants to open and read '{file_name}'.{PrintStyle.RESET.value}"
         elif tool_name == "python_executor":
-            code = args["code"]
-            return f"GPT wants to execute the following Python code:\n\n{code}"
+            code = highlight_code(args["code"])
+            return f"{code}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to execute the above Python code.{PrintStyle.RESET.value}"
         else:
             return ""
 
@@ -334,7 +408,7 @@ class Agent:
             wait=wait_random_exponential(min=2, max=60),
             stop=stop_after_attempt(3),
             after=lambda retry_state: print(
-                f"{PrintStyle.YELLOW.value}⚠ Unable to get response. Trying again... (Attempt {retry_state.attempt_number}/3){PrintStyle.RESET.value}"
+                f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Unable to get response. Trying again... (Attempt {retry_state.attempt_number}/3){PrintStyle.RESET.value}"
             ),
             reraise=True,
         )
@@ -362,7 +436,7 @@ class Agent:
             stream = get_stream()
         except Exception as e:
             print(
-                f"{PrintStyle.RED.value}⚠ Error getting response: {e}{PrintStyle.RESET.value}"
+                f"{PrintStyle.BRIGHT_RED.value}⚠ Error getting response: {e}{PrintStyle.RESET.value}"
             )
             return
 
@@ -381,7 +455,7 @@ class Agent:
                         }
                         print(
                             "\n" if text_stream_content else "",
-                            f"{PrintStyle.CYAN.value}Building tool call...{PrintStyle.RESET.value}",
+                            f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
                             sep="",
                             flush=True,
                         )
@@ -414,7 +488,7 @@ class Agent:
                     json.loads(tool_call["args_json"])
                 except json.JSONDecodeError:
                     print(
-                        f"{PrintStyle.YELLOW.value}⚠ Error decoding arguments for tool call {tool_call['tool_name']}. Trying again...{PrintStyle.RESET.value}"
+                        f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error decoding arguments for tool call {tool_call['tool_name']}. Trying again...{PrintStyle.RESET.value}"
                     )
                     self.chat.append(
                         {
@@ -428,10 +502,11 @@ class Agent:
 
                 if not self.always_allow:
                     print(
-                        f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
+                        f"\n{PrintStyle.BRIGHT_CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}",
+                        end=" ",
                     )
                     tool_confirmation = input(
-                        f"{PrintStyle.MAGENTA.value}Allow?\n[y or yes to confirm else cancel with optional message]: {PrintStyle.RESET.value}"
+                        f"{PrintStyle.BRIGHT_MAGENTA.value}Allow?\n[y or yes to confirm else cancel with optional message]: {PrintStyle.RESET.value}"
                     )
                 if self.always_allow or tool_confirmation.lower() in ["y", "yes"]:
                     try:
@@ -441,11 +516,11 @@ class Agent:
 
                         if tool_result.startswith("Error"):
                             print(
-                                f"{PrintStyle.YELLOW.value}⚠ Something went wrong.{PrintStyle.RESET.value}"
+                                f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Something went wrong.{PrintStyle.RESET.value}"
                             )
                         else:
                             print(
-                                f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
+                                f"{PrintStyle.BRIGHT_GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
                             )
 
                         self.chat.append(
@@ -458,7 +533,7 @@ class Agent:
                         )
                     except Exception as e:
                         print(
-                            f"{PrintStyle.RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
+                            f"{PrintStyle.BRIGHT_RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
                         )
                         self.chat.append(
                             {
@@ -470,7 +545,7 @@ class Agent:
                         )
                 else:
                     print(
-                        f"{PrintStyle.YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                        f"{PrintStyle.BRIGHT_YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
                     )
                     self.chat.append(
                         {

@@ -114,7 +114,7 @@ def main():
         if os.path.exists(DEFAULTS_FILE):
             os.remove(DEFAULTS_FILE)
         print(
-            f"{PrintStyle.CYAN.value}Defaults have been reset.{PrintStyle.RESET.value}"
+            f"{PrintStyle.BRIGHT_CYAN.value}Defaults have been reset.{PrintStyle.RESET.value}"
         )
 
     if args.save_defaults:
@@ -125,7 +125,7 @@ def main():
         }
         save_defaults(current_flags)
         print(
-            f"{PrintStyle.CYAN.value}Defaults have been set to current flags.{PrintStyle.RESET.value}"
+            f"{PrintStyle.BRIGHT_CYAN.value}Defaults have been set to current flags.{PrintStyle.RESET.value}"
         )
 
     has_initial_query = bool(args.query)
