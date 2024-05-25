@@ -155,10 +155,13 @@ def write_file(file_path, content):
         f"{PrintStyle.CYAN.value}Writing to file '{file_path}'...{PrintStyle.RESET.value}"
     )
     file_path = os.path.join(USER_CWD, file_path)
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with open(file_path, "w", encoding="utf-8") as file:
-        file.write(content)
-    return f"File '{file_path}' written successfully."
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, "w", encoding="utf-8") as file:
+            file.write(content)
+        return f"File '{file_path}' written successfully."
+    except:
+        return f"Error writing to file '{file_path}'."
 
 
 def read_file(file_path):
@@ -180,7 +183,7 @@ def read_file(file_path):
             content = file.read()
         return f"Content of file '{file_path}':\n\n{content}"
     except FileNotFoundError:
-        return f"File '{file_path}' not found."
+        return f"Error: File '{file_path}' not found."
 
 
 def run_python_code(code):
@@ -435,9 +438,16 @@ class Agent:
                         tool_result = self.process_tool_call(tool_call)
                         if tool_result:
                             text_stream_content += f"\n\n{tool_result}"
-                        print(
-                            f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
-                        )
+
+                        if tool_result.startswith("Error"):
+                            print(
+                                f"{PrintStyle.YELLOW.value}⚠ Something went wrong.{PrintStyle.RESET.value}"
+                            )
+                        else:
+                            print(
+                                f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
+                            )
+                            
                         self.chat.append(
                             {
                                 "tool_call_id": tool_call["tool_call_id"],
