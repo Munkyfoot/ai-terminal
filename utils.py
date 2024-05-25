@@ -230,7 +230,7 @@ class Agent:
         self.always_allow = always_allow
         self.system_prompt = (
             f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
-            + "\n\nTool Calls:\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, use the tool directly to perform the task. Do not ask for permission first. Perform any tasks that require a tool call immediately, without responding to the user first, unless absolutely necessary for clarification. Tool calls should be in JSON format."
+            + "\n\nTool Calls:\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, use the tool directly to perform the task. Do not ask for permission first. Perform any tasks that require a tool call immediately, without responding to the user first, unless absolutely necessary for clarification."
         )
 
     def get_tool_call_message(self, tool_call):
@@ -447,7 +447,7 @@ class Agent:
                             print(
                                 f"{PrintStyle.GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
                             )
-                            
+
                         self.chat.append(
                             {
                                 "tool_call_id": tool_call["tool_call_id"],
