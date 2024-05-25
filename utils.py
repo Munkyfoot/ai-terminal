@@ -428,9 +428,9 @@ class Agent:
                         f"{PrintStyle.CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}"
                     )
                     tool_confirmation = input(
-                        f"{PrintStyle.MAGENTA.value}Allow? (y/[n]): {PrintStyle.RESET.value}"
+                        f"{PrintStyle.MAGENTA.value}Allow?\n[y or yes to confirm else cancel with optional message]: {PrintStyle.RESET.value}"
                     )
-                if self.always_allow or tool_confirmation.lower() == "y":
+                if self.always_allow or tool_confirmation.lower() in ["y", "yes"]:
                     try:
                         tool_result = self.process_tool_call(tool_call)
                         if tool_result:
@@ -467,9 +467,16 @@ class Agent:
                             "tool_call_id": tool_call["tool_call_id"],
                             "role": "tool",
                             "name": tool_call["tool_name"],
-                            "content": "User cancelled the tool execution.",
+                            "content": f"User cancelled the tool execution.",
                         }
                     )
+                    if tool_confirmation:
+                        self.chat.append(
+                            {
+                                "role": "user",
+                                "content": tool_confirmation,
+                            }
+                        )
 
         if self.use_memory:
             self.save_memory()
