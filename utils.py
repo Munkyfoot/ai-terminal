@@ -359,7 +359,7 @@ class Agent:
 
         return result
 
-    def tool_calls_to_openai_format(self, tool_calls):
+    def format_tool_call_response(self, tool_calls):
         """
         Converts tool calls to the format expected by the OpenAI API.
 
@@ -369,7 +369,7 @@ class Agent:
         Returns:
             list: A list of tool calls in the OpenAI format.
         """
-        openai_tool_calls = []
+        formatted_tool_calls = []
         for index, tool_call in tool_calls.items():
             openai_tool_call = {
                 "id": tool_call["tool_call_id"],
@@ -379,8 +379,8 @@ class Agent:
                     "arguments": tool_call["args_json"],
                 },
             }
-            openai_tool_calls.append(openai_tool_call)
-        return openai_tool_calls
+            formatted_tool_calls.append(openai_tool_call)
+        return formatted_tool_calls
 
     def run(self, query: str = "") -> None:
         """
@@ -477,9 +477,7 @@ class Agent:
             "content": text_stream_content,
         }
         if tool_call_detected:
-            response_message["tool_calls"] = self.tool_calls_to_openai_format(
-                tool_calls
-            )
+            response_message["tool_calls"] = self.format_tool_call_response(tool_calls)
         self.chat.append(response_message)
 
         if tool_call_detected:
