@@ -1,14 +1,14 @@
 # AI Terminal
 
-AI Terminal is a Python-based command-line tool that enables interaction with OpenAI and Anthropic AI models directly from your terminal. The AI can read and write files, execute Python code, answer questions, and more. By default, it requires your confirmation before performing file operations and executing Python code - though this can be changed with caution. You can also optionally save and load conversation history.
+AI Terminal is a Python-based command-line tool that enables interaction with OpenAI and Anthropic AI models directly from your terminal. The AI can read and write files, execute Python code, answer questions, and more. By default, it requires your confirmation before performing file operations and executing Python code - though this can be changed with caution.
 
 ## Features
 
 - **Direct AI Interaction:** Engage with OpenAI's and Anthropic's AI models via terminal.
-- **Multiple AI Models:** Support for various AI models, including GPT-4o, GPT-3.5-Turbo, and Claude 3.5 Sonnet.
+- **Multiple AI Models:** Support for various AI models, including GPT-4o, GPT-4-Turbo, GPT-3.5-Turbo, and Claude 3.5 Sonnet.
 - **Cross-Platform Commands:** Supports Windows, macOS, and Linux.
 - **Coding Assistance:** Help for programming tasks within the terminal.
-- **Memory Utilization:** Option to save and load conversation history.
+- **Memory Utilization:** Option to save and load important information for context retention across sessions.
 - **File Operations:** Read and write files based on user interaction.
 - **Directory Insight:** View files and directories within your current directory.
 - **Python Execution:** Run Python code snippets directly in terminal.
@@ -98,7 +98,7 @@ The query can be a question, command, or code snippet. The flags are optional an
 
 - `query` (optional): Initial question or command.
 - `flags`:
-  - `--memory` | `-m`: Save/load conversation history.
+  - `--memory` | `-m`: Enable memory to save and load context across sessions.
   - `--ls` | `-l`: Let AI Terminal view files and directories.
   - `--always-allow` | `-a`: Execute file operations without confirmation.
   - `--save-defaults` | `-S`: Save current flags as defaults.
@@ -240,6 +240,29 @@ The query can be a question, command, or code snippet. The flags are optional an
    ```bash
    ask "What's the capital of France?" --hide-splash
    ```
+
+## Memory Feature
+
+The memory feature in AI Terminal allows the AI to retain context across multiple sessions, enhancing its ability to provide consistent and contextually relevant responses. Here's how it works:
+
+- When the `--memory` flag is used, the AI stores important information from the conversation in a JSON file (`memory.json`).
+- In subsequent sessions with the `--memory` flag, the AI loads this stored information to maintain context.
+- The memory is managed to stay within a 4096-character limit, ensuring optimal performance while retaining the most relevant information.
+
+To use the memory feature:
+
+1. Enable memory in a session:
+
+   ```bash
+   ask "Let's start a project about climate change" --memory
+   ```
+
+2. In a later session, reference previous context:
+   ```bash
+   ask "What were we discussing in our last session?" --memory
+   ```
+
+The AI will use the stored memory to provide a contextual response based on previous interactions.
 
 ## Contributing
 
