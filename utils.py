@@ -484,8 +484,10 @@ class Agent:
         if self.api == "anthropic":
             with stream as claude_stream:
                 for text in claude_stream.text_stream:
-                    text_stream_content += text
-                    print(text, end="", flush=True)
+                    text = text if text_stream_content else text.strip()
+                    if text:
+                        text_stream_content += text
+                        print(text, end="", flush=True)
 
                 final_message_content = claude_stream.get_final_message().content
                 tool_uses = [
@@ -547,6 +549,7 @@ class Agent:
 
                 text = chunk.choices[0].delta.content
                 if text:
+                    text = text if text_stream_content else text.strip()
                     text_stream_content += text
                     print(text, end="", flush=True)
 
@@ -609,7 +612,7 @@ class Agent:
 
                 if not self.always_allow:
                     print(
-                        f"\n{PrintStyle.BRIGHT_CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}",
+                        f"{PrintStyle.BRIGHT_CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}",
                         end=" ",
                     )
                     tool_confirmation = input(
@@ -639,6 +642,7 @@ class Agent:
                                             "type": "tool_result",
                                             "tool_use_id": tool_call["tool_call_id"],
                                             "content": tool_result,
+                                            "is_error": tool_result.startswith("Error"),
                                         }
                                     ],
                                 }
