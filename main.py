@@ -219,7 +219,9 @@ def main():
 
         except Exception as e:
             # Handle any other exceptions
-            print(f"Error (user): {e.with_traceback(None)}")
+            print(
+                f"{PrintStyle.BRIGHT_RED.value}⚠ Error getting response: {e}{PrintStyle.RESET.value}"
+            )
             continue
 
     # Clear any styles before exiting
