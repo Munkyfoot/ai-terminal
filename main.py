@@ -8,6 +8,13 @@ DEFAULTS_FILE = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "defaults.json")
 )
 
+AVAILABLE_MODELS = [
+    "gpt-4o",
+    "gpt-4-turbo",
+    "gpt-3.5-turbo",
+    "claude-3-5-sonnet-20240620",
+]
+
 
 def create_argument_parser():
     """
@@ -46,6 +53,21 @@ def create_argument_parser():
         action="store_true",
         help="Reset the flags to their original defaults",
     )
+    parser.add_argument(
+        "--show-models",
+        action="store_true",
+        help="Show available AI models",
+    )
+    parser.add_argument(
+        "--model",
+        choices=AVAILABLE_MODELS,
+        help="Choose the AI model to use (default: gpt-4o)",
+    )
+    parser.add_argument(
+        "--hide-splash",
+        action="store_true",
+        help="Hide the ASCII art splash screen and settings display",
+    )
 
     return parser
 
@@ -75,7 +97,7 @@ def initialize_agent(args):
         Agent: Configured Agent instance.
     """
     return Agent(
-        model="gpt-4o",
+        model=args.model,
         use_memory=args.memory,
         view_list_dir=args.ls,
         always_allow=args.always_allow,
@@ -96,19 +118,41 @@ def handle_query(agent, query):
     return agent.run(query)
 
 
+def print_ascii_art():
+    """Print the AI TERMINAL ASCII art."""
+    ascii_art = r"""
+    _    ___   _____ _____ ____  __  __ ___ _   _    _    _     
+   / \  |_ _| |_   _| ____|  _ \|  \/  |_ _| \ | |  / \  | |    
+  / _ \  | |    | | |  _| | |_) | |\/| || ||  \| | / _ \ | |    
+ / ___ \ | |    | | | |___|  _ <| |  | || || |\  |/ ___ \| |___ 
+/_/   \_\___|   |_| |_____|_| \_\_|  |_|___|_| \_/_/   \_\_____|
+"""
+    print(f"{PrintStyle.BRIGHT_CYAN.value}{ascii_art}{PrintStyle.RESET.value}")
+
+
 def main():
     """
     Main function to run the chat application.
     """
     parser = create_argument_parser()
     args = parser.parse_args()
-    
+
+    if args.show_models:
+        print("Available AI models:")
+        for model in AVAILABLE_MODELS:
+            print(f"- {model}")
+        return
+
     defaults = load_defaults()
 
     # Apply defaults if they exist and flags are not explicitly set
-    for flag in ["memory", "ls", "always_allow"]:
+    for flag in ["memory", "ls", "always_allow", "model", "hide_splash"]:
         if flag in defaults and not getattr(args, flag):
             setattr(args, flag, defaults[flag])
+
+    # Set the default model if not provided
+    if not args.model:
+        args.model = "gpt-4o"
 
     if args.reset_defaults:
         if os.path.exists(DEFAULTS_FILE):
@@ -122,11 +166,30 @@ def main():
             "memory": args.memory,
             "ls": args.ls,
             "always_allow": args.always_allow,
+            "model": args.model,
+            "hide_splash": args.hide_splash,
         }
         save_defaults(current_flags)
         print(
             f"{PrintStyle.BRIGHT_CYAN.value}Defaults have been set to current flags.{PrintStyle.RESET.value}"
         )
+
+    if not args.hide_splash:
+        # Print ASCII art and current settings
+        print_ascii_art()
+        print(
+            f"{PrintStyle.CYAN.value}         Model  {PrintStyle.RESET.value}{args.model}"
+        )
+        print(
+            f"{PrintStyle.CYAN.value}        Memory  {f'{PrintStyle.RESET.value}Enabled' if args.memory else f'{PrintStyle.GRAY.value}Disabled'}"
+        )
+        print(
+            f"{PrintStyle.CYAN.value}List Directory  {f'{PrintStyle.RESET.value}Enabled' if args.ls else f'{PrintStyle.GRAY.value}Disabled'}"
+        )
+        print(
+            f"{PrintStyle.CYAN.value}  Always Allow  {f'{PrintStyle.RESET.value}Enabled' if args.always_allow else f'{PrintStyle.GRAY.value}Disabled'}"
+        )
+        print(PrintStyle.RESET.value)
 
     has_initial_query = bool(args.query)
     agent = initialize_agent(args)
@@ -156,7 +219,7 @@ def main():
 
         except Exception as e:
             # Handle any other exceptions
-            print(f"Error (user): {e}")
+            print(f"Error (user): {e.with_traceback(None)}")
             continue
 
     # Clear any styles before exiting

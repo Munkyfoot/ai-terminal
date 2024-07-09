@@ -5,8 +5,10 @@ import subprocess
 import sys
 from enum import Enum
 from typing import Literal
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
+from anthropic import Anthropic
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
@@ -289,19 +291,29 @@ class Agent:
 
     def __init__(
         self,
-        model: Literal["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"] = "gpt-4o",
+        model: Literal[
+            "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet-20240620"
+        ] = "gpt-4o",
         use_memory=False,
         view_list_dir=False,
         always_allow=False,
     ) -> None:
-        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-        self.model = model
-        self.use_memory = use_memory
+        self.model = model if model else "gpt-4o"
+        if self.model.startswith("claude"):
+            self.api = "anthropic"
+            self.client = Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        elif self.model.startswith("gpt"):
+            self.api = "openai"
+            self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
         self.chat = []
+        self.use_memory = use_memory
         if self.use_memory:
             self.load_memory()
+
         self.view_list_dir = view_list_dir
         self.always_allow = always_allow
+
         self.system_prompt = (
             f"Your primary function is to assist the user with tasks related to terminal commands in their respective platform. You can also help with code and other queries. Information about the user's platform, environment, and current working directory is provided below.\n\n{USER_INFO}"
             + "\n\nTool Calls:\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, use the tool directly to perform the task. Do not ask for permission first. Perform any tasks that require a tool call immediately, without responding to the user first, unless absolutely necessary for clarification."
@@ -318,7 +330,10 @@ class Agent:
             str: A formatted message describing the tool call.
         """
         tool_name = tool_call["tool_name"]
-        args = json.loads(tool_call["args_json"])
+        if self.api == "anthropic":
+            args = tool_call["args_json"]
+        elif self.api == "openai":
+            args = json.loads(tool_call["args_json"])
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
@@ -343,7 +358,10 @@ class Agent:
             str: The result of the tool execution.
         """
         tool_name = tool_call["tool_name"]
-        args = json.loads(tool_call["args_json"])
+        if self.api == "anthropic":
+            args = tool_call["args_json"]
+        elif self.api == "openai":
+            args = json.loads(tool_call["args_json"])
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
@@ -359,28 +377,27 @@ class Agent:
 
         return result
 
-    def format_tool_call_response(self, tool_calls):
+    def format_tool(self, tool):
         """
-        Converts tool calls to the format expected by the OpenAI API.
+        Formats the tool for the current API.
 
         Args:
-            tool_calls (dict): Tool calls information.
+            tool (dict): The tool to format.
 
         Returns:
-            list: A list of tool calls in the OpenAI format.
+            dict: The formatted tool.
         """
-        formatted_tool_calls = []
-        for index, tool_call in tool_calls.items():
-            openai_tool_call = {
-                "id": tool_call["tool_call_id"],
-                "type": "function",
-                "function": {
-                    "name": tool_call["tool_name"],
-                    "arguments": tool_call["args_json"],
-                },
+
+        if self.api == "anthropic":
+            formatted_tool = {
+                "name": tool["function"]["name"],
+                "description": tool["function"]["description"],
+                "input_schema": tool["function"]["parameters"],
             }
-            formatted_tool_calls.append(openai_tool_call)
-        return formatted_tool_calls
+        elif self.api == "openai":
+            formatted_tool = tool
+
+        return formatted_tool
 
     def run(self, query: str = "") -> None:
         """
@@ -413,23 +430,36 @@ class Agent:
             reraise=True,
         )
         def get_stream():
-            stream = self.client.chat.completions.create(
-                max_tokens=4092,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": full_system_prompt,
-                    }
-                ]
-                + _messages,
-                model=self.model,
-                tools=[
-                    FILE_WRITER_TOOL,
-                    FILE_READER_TOOL,
-                    PYTHON_EXECUTOR_TOOL,
-                ],
-                stream=True,
-            )
+            if self.api == "anthropic":
+                stream = self.client.messages.stream(
+                    max_tokens=4096,
+                    system=full_system_prompt,
+                    messages=_messages,
+                    model=self.model,
+                    tools=[
+                        self.format_tool(FILE_WRITER_TOOL),
+                        self.format_tool(FILE_READER_TOOL),
+                        self.format_tool(PYTHON_EXECUTOR_TOOL),
+                    ],
+                )
+            elif self.api == "openai":
+                stream = self.client.chat.completions.create(
+                    max_tokens=4096,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": full_system_prompt,
+                        }
+                    ]
+                    + _messages,
+                    model=self.model,
+                    tools=[
+                        FILE_WRITER_TOOL,
+                        FILE_READER_TOOL,
+                        PYTHON_EXECUTOR_TOOL,
+                    ],
+                    stream=True,
+                )
             return stream
 
         try:
@@ -443,59 +473,137 @@ class Agent:
         text_stream_content = ""
         tool_calls = {}
         tool_call_detected = False
-        for chunk in stream:
-            if chunk.choices[0].delta.tool_calls:
-                for tool_call in chunk.choices[0].delta.tool_calls:
-                    tool_call_detected = True
-                    if tool_call.index not in tool_calls:
-                        tool_calls[tool_call.index] = {
-                            "tool_call_id": tool_call.id,
-                            "tool_name": tool_call.function.name,
-                            "args_json": "",
+
+        if self.api == "anthropic":
+            with stream as claude_stream:
+                for text in claude_stream.text_stream:
+                    text_stream_content += text
+                    print(text, end="", flush=True)
+
+                final_message_content = claude_stream.get_final_message().content
+                tool_uses = [
+                    {
+                        "tool_call_id": content.id,
+                        "tool_name": content.name,
+                        "args_json": content.input,
+                    }
+                    for content in final_message_content
+                    if content.type == "tool_use"
+                ]
+
+            if tool_uses:
+                tool_call_detected = True
+                for i, tool_use in enumerate(tool_uses):
+                    tool_calls[i] = tool_use
+
+            response_message = {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": text_stream_content,
+                    }
+                ],
+            }
+            if tool_call_detected:
+                for index, tool_call in tool_calls.items():
+                    response_message["content"].append(
+                        {
+                            "id": tool_call["tool_call_id"],
+                            "type": "tool_use",
+                            "name": tool_call["tool_name"],
+                            "input": tool_call["args_json"],
                         }
-                        print(
-                            "\n" if text_stream_content else "",
-                            f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
-                            sep="",
-                            flush=True,
-                        )
+                    )
 
-                    tool_calls[tool_call.index][
-                        "args_json"
-                    ] += tool_call.function.arguments
+        elif self.api == "openai":
+            for chunk in stream:
+                if chunk.choices[0].delta.tool_calls:
+                    for tool_call in chunk.choices[0].delta.tool_calls:
+                        tool_call_detected = True
+                        if tool_call.index not in tool_calls:
+                            tool_calls[tool_call.index] = {
+                                "tool_call_id": tool_call.id,
+                                "tool_name": tool_call.function.name,
+                                "args_json": "",
+                            }
+                            print(
+                                "\n" if text_stream_content else "",
+                                f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
+                                sep="",
+                                flush=True,
+                            )
 
-            text = chunk.choices[0].delta.content
-            if text:
-                text_stream_content += text
-                print(text, end="", flush=True)
+                        tool_calls[tool_call.index][
+                            "args_json"
+                        ] += tool_call.function.arguments
+
+                text = chunk.choices[0].delta.content
+                if text:
+                    text_stream_content += text
+                    print(text, end="", flush=True)
+
+            response_message = {
+                "role": "assistant",
+                "content": text_stream_content,
+            }
+            if tool_call_detected:
+                response_message["tool_calls"] = []
+                for index, tool_call in tool_calls.items():
+                    response_message["tool_calls"].append(
+                        {
+                            "id": tool_call["tool_call_id"],
+                            "type": "function",
+                            "function": {
+                                "name": tool_call["tool_name"],
+                                "arguments": tool_call["args_json"],
+                            },
+                        }
+                    )
 
         if text_stream_content and not tool_call_detected:
             print("", flush=True)
 
-        response_message = {
-            "role": "assistant",
-            "content": text_stream_content,
-        }
-        if tool_call_detected:
-            response_message["tool_calls"] = self.format_tool_call_response(tool_calls)
+        # response_message = {
+        #     "role": "assistant",
+        #     "content": text_stream_content,
+        # }
+        # if tool_call_detected:
+        #     response_message["tool_calls"] = self.format_tool_call_response(tool_calls)
         self.chat.append(response_message)
 
         if tool_call_detected:
             for index, tool_call in tool_calls.items():
                 try:
-                    json.loads(tool_call["args_json"])
+                    if self.api == "openai":
+                        json.loads(tool_call["args_json"])
                 except json.JSONDecodeError:
                     print(
                         f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error decoding arguments for tool call {tool_call['tool_name']}. Trying again...{PrintStyle.RESET.value}"
                     )
-                    self.chat.append(
-                        {
-                            "tool_call_id": tool_call["tool_call_id"],
-                            "role": "tool",
-                            "name": tool_call["tool_name"],
-                            "content": "Error decoding arguments. Ensure the arguments are in valid JSON format and try again.",
-                        }
-                    )
+                    if self.api == "anthropic":
+                        self.chat.append(
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": tool_call["tool_call_id"],
+                                        "content": "Error decoding arguments. Ensure the arguments are in valid JSON format and try again.",
+                                        "is_error": True,
+                                    }
+                                ],
+                            }
+                        )
+                    elif self.api == "openai":
+                        self.chat.append(
+                            {
+                                "tool_call_id": tool_call["tool_call_id"],
+                                "role": "tool",
+                                "name": tool_call["tool_name"],
+                                "content": "Error decoding arguments. Ensure the arguments are in valid JSON format and try again.",
+                            }
+                        )
                     break
 
                 if not self.always_allow:
@@ -521,45 +629,99 @@ class Agent:
                                 f"{PrintStyle.BRIGHT_GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
                             )
 
-                        self.chat.append(
-                            {
-                                "tool_call_id": tool_call["tool_call_id"],
-                                "role": "tool",
-                                "name": tool_call["tool_name"],
-                                "content": tool_result,
-                            }
-                        )
+                        if self.api == "anthropic":
+                            self.chat.append(
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "tool_result",
+                                            "tool_use_id": tool_call["tool_call_id"],
+                                            "content": tool_result,
+                                        }
+                                    ],
+                                }
+                            )
+                        elif self.api == "openai":
+                            self.chat.append(
+                                {
+                                    "tool_call_id": tool_call["tool_call_id"],
+                                    "role": "tool",
+                                    "name": tool_call["tool_name"],
+                                    "content": tool_result,
+                                }
+                            )
                     except Exception as e:
                         print(
                             f"{PrintStyle.BRIGHT_RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
                         )
+
+                        if self.api == "anthropic":
+                            self.chat.append(
+                                {
+                                    "role": "user",
+                                    "content": [
+                                        {
+                                            "type": "tool_result",
+                                            "tool_use_id": tool_call["tool_call_id"],
+                                            "content": f"Error executing tool: {e}",
+                                            "is_error": True,
+                                        }
+                                    ],
+                                }
+                            )
+                        elif self.api == "openai":
+                            self.chat.append(
+                                {
+                                    "tool_call_id": tool_call["tool_call_id"],
+                                    "role": "tool",
+                                    "name": tool_call["tool_name"],
+                                    "content": f"Error executing tool: {e}",
+                                }
+                            )
+                else:
+                    print(
+                        f"{PrintStyle.BRIGHT_YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                    )
+
+                    if self.api == "anthropic":
+                        response_content = [
+                            {
+                                "type": "tool_result",
+                                "tool_use_id": tool_call["tool_call_id"],
+                                "content": "User cancelled the tool execution.",
+                                "is_error": True,
+                            }
+                        ]
+                        if tool_confirmation:
+                            response_content.append(
+                                {
+                                    "type": "text",
+                                    "text": tool_confirmation,
+                                }
+                            )
+                        self.chat.append(
+                            {
+                                "role": "user",
+                                "content": response_content,
+                            }
+                        )
+                    elif self.api == "openai":
                         self.chat.append(
                             {
                                 "tool_call_id": tool_call["tool_call_id"],
                                 "role": "tool",
                                 "name": tool_call["tool_name"],
-                                "content": f"Error executing tool: {e}",
+                                "content": f"User cancelled the tool execution.",
                             }
                         )
-                else:
-                    print(
-                        f"{PrintStyle.BRIGHT_YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
-                    )
-                    self.chat.append(
-                        {
-                            "tool_call_id": tool_call["tool_call_id"],
-                            "role": "tool",
-                            "name": tool_call["tool_name"],
-                            "content": f"User cancelled the tool execution.",
-                        }
-                    )
-                    if tool_confirmation:
-                        self.chat.append(
-                            {
-                                "role": "user",
-                                "content": tool_confirmation,
-                            }
-                        )
+                        if tool_confirmation:
+                            self.chat.append(
+                                {
+                                    "role": "user",
+                                    "content": tool_confirmation,
+                                }
+                            )
 
         if self.use_memory:
             self.save_memory()

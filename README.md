@@ -1,22 +1,25 @@
 # AI Terminal
 
-AI Terminal is a Python-based command-line tool, enabling interaction with OpenAI models straight from your terminal. The AI can read and write files, execute Python code, answer questions, and more. By default, it requires your confirmation before performing file operations and executing Python code - though this can be changed with caution. You can also optionally save and load conversation history.
+AI Terminal is a Python-based command-line tool that enables interaction with OpenAI and Anthropic AI models directly from your terminal. The AI can read and write files, execute Python code, answer questions, and more. By default, it requires your confirmation before performing file operations and executing Python code - though this can be changed with caution. You can also optionally save and load conversation history.
 
 ## Features
 
-- **Direct AI Interaction:** Engage with OpenAI's AI models via terminal.
+- **Direct AI Interaction:** Engage with OpenAI's and Anthropic's AI models via terminal.
+- **Multiple AI Models:** Support for various AI models, including GPT-4o, GPT-3.5-Turbo, and Claude 3.5 Sonnet.
 - **Cross-Platform Commands:** Supports Windows, macOS, and Linux.
 - **Coding Assistance:** Help for programming tasks within the terminal.
 - **Memory Utilization:** Option to save and load conversation history.
 - **File Operations:** Read and write files based on user interaction.
 - **Directory Insight:** View files and directories within your current directory.
 - **Python Execution:** Run Python code snippets directly in terminal.
+- **Syntax Highlighting:** Colorful output for better readability of code and commands.
+- **Customizable Settings:** Save and load default settings for convenience.
 
 ## Prerequisites
 
 - Python 3.7+
 - pip (Python Package Installer)
-- OpenAI API key
+- OpenAI API key and/or Anthropic API key
 
 ## Installation
 
@@ -66,10 +69,11 @@ AI Terminal is a Python-based command-line tool, enabling interaction with OpenA
      rename .env.example .env
      ```
 
-7. **Add your OpenAI API key in the `.env` file:**
+7. **Add your API key(s) in the `.env` file:**
 
    ```env
-   OPENAI_API_KEY="YOUR_API_KEY"
+   OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
+   ANTHROPIC_API_KEY="YOUR_ANTHROPIC_API_KEY"
    ```
 
 ## Usage
@@ -99,6 +103,9 @@ The query can be a question, command, or code snippet. The flags are optional an
   - `--always-allow` | `-a`: Execute file operations without confirmation.
   - `--save-defaults` | `-S`: Save current flags as defaults.
   - `--reset-defaults` | `-R`: Reset flags to default settings.
+  - `--show-models`: Display available AI models.
+  - `--model`: Choose the AI model to use (e.g., "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet-20240620").
+  - `--hide-splash`: Hide the ASCII art splash screen and settings display.
 
 ### Examples:
 
@@ -130,6 +137,18 @@ The query can be a question, command, or code snippet. The flags are optional an
    ```bash
    python main.py --reset-defaults
    ```
+8. **Show available AI models:**
+   ```bash
+   python main.py --show-models
+   ```
+9. **Use a specific AI model:**
+   ```bash
+   python main.py "Tell me a joke" --model gpt-4-turbo
+   ```
+10. **Hide the splash screen:**
+    ```bash
+    python main.py "What's the weather like today?" --hide-splash
+    ```
 
 ## Command Line Alias (`ask`)
 
@@ -212,6 +231,14 @@ The query can be a question, command, or code snippet. The flags are optional an
 7. **Reset flags to defaults:**
    ```bash
    ask --reset-defaults
+   ```
+8. **Use a specific AI model:**
+   ```bash
+   ask "Explain quantum computing" --model claude-3-5-sonnet-20240620
+   ```
+9. **Hide the splash screen:**
+   ```bash
+   ask "What's the capital of France?" --hide-splash
    ```
 
 ## Contributing
