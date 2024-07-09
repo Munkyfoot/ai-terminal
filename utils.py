@@ -733,9 +733,12 @@ class Agent:
         """
         if os.path.exists(MEMORY_FILE):
             with open(MEMORY_FILE, "r") as f:
-                return json.load(f)
-        else:
-            return []
+                memories = json.load(f)
+                if isinstance(memories, list):
+                    if len(memories) > 0:
+                        if isinstance(memories[0], str):
+                            return memories
+        return []
 
     def save_memory(self, memory) -> None:
         """
