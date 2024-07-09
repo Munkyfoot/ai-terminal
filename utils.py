@@ -585,12 +585,12 @@ class Agent:
                                 "tool_name": tool_call.function.name,
                                 "args_json": "",
                             }
-                            print(
-                                "\n" if text_stream_content else "",
-                                f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
-                                sep="",
-                                flush=True,
-                            )
+                            # print(
+                            #     "\n" if text_stream_content else "",
+                            #     f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
+                            #     sep="",
+                            #     flush=True,
+                            # )
 
                         tool_calls[tool_call.index][
                             "args_json"
@@ -620,7 +620,7 @@ class Agent:
                         }
                     )
 
-        if text_stream_content and not tool_call_detected:
+        if text_stream_content:
             print("", flush=True)
 
         self.chat.append(response_message)
