@@ -556,13 +556,17 @@ class Agent:
 
             response_message = {
                 "role": "assistant",
-                "content": [
+                "content": [],
+            }
+
+            if text_stream_content:
+                response_message["content"].append(
                     {
                         "type": "text",
                         "text": text_stream_content,
                     }
-                ],
-            }
+                )
+
             if tool_call_detected:
                 for index, tool_call in tool_calls.items():
                     response_message["content"].append(
