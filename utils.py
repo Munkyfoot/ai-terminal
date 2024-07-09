@@ -318,6 +318,8 @@ class Agent:
             + "\n\nTool Calls:\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, use the tool directly to perform the task. Do not ask for permission first. Perform any tasks that require a tool call immediately, without responding to the user first, unless absolutely necessary for clarification."
         )
 
+        self._failed_tool_calls = 0
+
     def is_valid_tool_call(self, tool_call):
         """
         Checks if a tool call is valid.
@@ -327,35 +329,63 @@ class Agent:
 
         Returns:
             bool: True if the tool call is valid, False otherwise.
+            str: An error message if the tool call is invalid.
         """
-        try:
-            valid = tool_call["tool_name"] in [
-                "file_writer",
-                "file_reader",
-                "python_executor",
-                "save_memory",
-                "remove_memory",
-            ]
+        if tool_call["tool_name"] not in [
+            "file_writer",
+            "file_reader",
+            "python_executor",
+            "save_memory",
+            "remove_memory",
+        ]:
+            return (
+                False,
+                "Invalid tool name. The tool name must be one of 'file_writer', 'file_reader', 'python_executor', 'save_memory', or 'remove_memory'.",
+            )
 
+        try:
             if self.api == "anthropic":
                 args = tool_call["args_json"]
             elif self.api == "openai":
                 args = json.loads(tool_call["args_json"])
-
-            if tool_call["tool_name"] == "file_writer":
-                valid = valid and "file_path" in args and "content" in args
-            elif tool_call["tool_name"] == "file_reader":
-                valid = valid and "file_path" in args
-            elif tool_call["tool_name"] == "python_executor":
-                valid = valid and "code" in args
-            elif tool_call["tool_name"] == "save_memory":
-                valid = valid and "content" in args
-            elif tool_call["tool_name"] == "remove_memory":
-                valid = valid and "index" in args
-
-            return valid
         except:
-            return False
+            return (
+                False,
+                "Error decoding arguments. Ensure the arguments are in valid JSON format.",
+            )
+
+        if tool_call["tool_name"] == "file_writer":
+            if "file_path" not in args or "content" not in args:
+                return (
+                    False,
+                    "Missing required arguments. 'file_path' and 'content' are required arguments for the 'file_writer' tool. If you receive this error repeatedly, it may be because the content is too large. Try reducing the content size - you can break it up into multiple tool calls if necessary.",
+                )
+        elif tool_call["tool_name"] == "file_reader":
+            if "file_path" not in args:
+                return (
+                    False,
+                    "Missing required argument. 'file_path' is a required argument for the 'file_reader' tool.",
+                )
+        elif tool_call["tool_name"] == "python_executor":
+            if "code" not in args:
+                return (
+                    False,
+                    "Missing required argument. 'code' is a required argument for the 'python_executor' tool. If you receive this error repeatedly, it may be because the code is too large. Try reducing the code size.",
+                )
+        elif tool_call["tool_name"] == "save_memory":
+            if "content" not in args:
+                return (
+                    False,
+                    "Missing required argument. 'content' is a required argument for the 'save_memory' tool.",
+                )
+        elif tool_call["tool_name"] == "remove_memory":
+            if "index" not in args:
+                return (
+                    False,
+                    "Missing required argument. 'index' is a required argument for the 'remove_memory' tool.",
+                )
+
+        return True, ""
 
     def get_tool_call_message(self, tool_call):
         """
@@ -631,9 +661,13 @@ class Agent:
 
         if tool_call_detected:
             for index, tool_call in tool_calls.items():
-                if not self.is_valid_tool_call(tool_call):
+                valid_tool_call, error_message = self.is_valid_tool_call(tool_call)
+                if valid_tool_call:
+                    self._failed_tool_calls = 0
+                elif self._failed_tool_calls < 3:
+                    self._failed_tool_calls += 1
                     print(
-                        f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error decoding arguments for tool call {tool_call['tool_name']}. Trying again...{PrintStyle.RESET.value}"
+                        f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error using {tool_call['tool_name']} tool. Trying again... (Attempt {self._failed_tool_calls}/3){PrintStyle.RESET.value}"
                     )
                     if self.api == "anthropic":
                         self.chat.append(
@@ -643,7 +677,7 @@ class Agent:
                                     {
                                         "type": "tool_result",
                                         "tool_use_id": tool_call["tool_call_id"],
-                                        "content": "Error decoding arguments. Ensure the arguments are in valid JSON format and try again.",
+                                        "content": error_message,
                                         "is_error": True,
                                     }
                                 ],
@@ -655,7 +689,35 @@ class Agent:
                                 "tool_call_id": tool_call["tool_call_id"],
                                 "role": "tool",
                                 "name": tool_call["tool_name"],
-                                "content": "Error decoding arguments. Ensure the arguments are in valid JSON format and try again.",
+                                "content": error_message,
+                            }
+                        )
+                    break
+                else:
+                    print(
+                        f"{PrintStyle.BRIGHT_RED.value}⚠ Unable to use {tool_call['tool_name']} tool. Maximum attempts reached.{PrintStyle.RESET.value}"
+                    )
+                    if self.api == "anthropic":
+                        self.chat.append(
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": tool_call["tool_call_id"],
+                                        "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
+                                        "is_error": True,
+                                    }
+                                ],
+                            }
+                        )
+                    elif self.api == "openai":
+                        self.chat.append(
+                            {
+                                "tool_call_id": tool_call["tool_call_id"],
+                                "role": "tool",
+                                "name": tool_call["tool_name"],
+                                "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
                             }
                         )
                     break
