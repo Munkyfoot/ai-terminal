@@ -318,6 +318,45 @@ class Agent:
             + "\n\nTool Calls:\nIf you're asked to perform a task that requires writing to the file system, reading from a file, or executing Python code, use the tool directly to perform the task. Do not ask for permission first. Perform any tasks that require a tool call immediately, without responding to the user first, unless absolutely necessary for clarification."
         )
 
+    def is_valid_tool_call(self, tool_call):
+        """
+        Checks if a tool call is valid.
+
+        Args:
+            tool_call (dict): Tool call information.
+
+        Returns:
+            bool: True if the tool call is valid, False otherwise.
+        """
+        try:
+            valid = tool_call["tool_name"] in [
+                "file_writer",
+                "file_reader",
+                "python_executor",
+                "save_memory",
+                "remove_memory",
+            ]
+
+            if self.api == "anthropic":
+                args = tool_call["args_json"]
+            elif self.api == "openai":
+                args = json.loads(tool_call["args_json"])
+
+            if tool_call["tool_name"] == "file_writer":
+                valid = valid and "file_path" in args and "content" in args
+            elif tool_call["tool_name"] == "file_reader":
+                valid = valid and "file_path" in args
+            elif tool_call["tool_name"] == "python_executor":
+                valid = valid and "code" in args
+            elif tool_call["tool_name"] == "save_memory":
+                valid = valid and "content" in args
+            elif tool_call["tool_name"] == "remove_memory":
+                valid = valid and "index" in args
+
+            return valid
+        except:
+            return False
+
     def get_tool_call_message(self, tool_call):
         """
         Generates a message for a tool call.
@@ -344,9 +383,12 @@ class Agent:
         elif tool_name == "python_executor":
             code = highlight_code(args["code"])
             return f"{code}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to execute the above Python code.{PrintStyle.RESET.value}"
-        elif tool_name == "memory":
+        elif tool_name == "save_memory":
             content = args["content"]
             return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to store this information in memory for future reference.{PrintStyle.RESET.value}"
+        elif tool_name == "remove_memory":
+            index = args["index"]
+            return f"{PrintStyle.BRIGHT_CYAN.value}GPT wants to remove the memory item at index {index}.{PrintStyle.RESET.value}"
         else:
             return ""
 
@@ -375,10 +417,14 @@ class Agent:
         elif tool_name == "python_executor":
             code = args["code"]
             result = run_python_code(code)
-        elif tool_name == "memory":
+        elif tool_name == "save_memory":
             content = args["content"]
             self.save_memory(content)
             result = f"Stored in memory: {content}"
+        elif tool_name == "remove_memory":
+            index = args["index"]
+            self.remove_memory(index)
+            result = f"Removed memory item at index {index}."
         else:
             return ""
 
@@ -424,7 +470,9 @@ class Agent:
         if self.use_memory:
             memories = self.load_memory()
             if memories:
-                full_system_prompt += f"\n\nMemories:\n\n{memories[-1]}"
+                full_system_prompt += f"\n\nMemories:\n\n"
+                for i, memory in enumerate(memories):
+                    full_system_prompt += f"#{i} -> {memory}\n\n"
 
         _messages = self.chat[-MAX_MESSAGES:]
 
@@ -443,7 +491,8 @@ class Agent:
                 self.format_tool(PYTHON_EXECUTOR_TOOL),
             ]
             if self.use_memory:
-                tools.append(self.format_tool(MEMORY_TOOL))
+                tools.append(self.format_tool(SAVE_MEMORY_TOOL))
+                tools.append(self.format_tool(REMOVE_MEMORY_TOOL))
 
             if self.api == "anthropic":
                 stream = self.client.messages.stream(
@@ -578,10 +627,7 @@ class Agent:
 
         if tool_call_detected:
             for index, tool_call in tool_calls.items():
-                try:
-                    if self.api == "openai":
-                        json.loads(tool_call["args_json"])
-                except json.JSONDecodeError:
+                if not self.is_valid_tool_call(tool_call):
                     print(
                         f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error decoding arguments for tool call {tool_call['tool_name']}. Trying again...{PrintStyle.RESET.value}"
                     )
@@ -755,6 +801,16 @@ class Agent:
         with open(MEMORY_FILE, "w") as f:
             json.dump(memories, f)
 
+    def remove_memory(self, index) -> None:
+        """
+        Removes a memory item from the conversation memory.
+        """
+        memories = self.load_memory()
+        if index < len(memories):
+            memories.pop(index)
+            with open(MEMORY_FILE, "w") as f:
+                json.dump(memories, f)
+
 
 # Tool definitions for integration with the OpenAI agent
 FILE_WRITER_TOOL = {
@@ -815,10 +871,10 @@ PYTHON_EXECUTOR_TOOL = {
     },
 }
 
-MEMORY_TOOL = {
+SAVE_MEMORY_TOOL = {
     "type": "function",
     "function": {
-        "name": "memory",
+        "name": "save_memory",
         "description": "Stores information from the conversation to provide context for future responses. Useful for maintaining state across multiple sessions, especially in memory-intensive tasks.",
         "parameters": {
             "type": "object",
@@ -829,6 +885,24 @@ MEMORY_TOOL = {
                 },
             },
             "required": ["content"],
+        },
+    },
+}
+
+REMOVE_MEMORY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "remove_memory",
+        "description": "Removes a specific memory item from the conversation memory.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "index": {
+                    "type": "integer",
+                    "description": "The index of the memory item to remove.",
+                },
+            },
+            "required": ["index"],
         },
     },
 }
