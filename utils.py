@@ -17,7 +17,7 @@ load_dotenv()
 
 # Constants
 MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "memory.json"))
-MEMORY_MAX = 24  # Limit for messages stored in memory
+MAX_MESSAGES = 24  # Limit for messages stored in chat history
 
 # User's platform and environment information
 USER_PLATFORM = sys.platform
@@ -307,9 +307,8 @@ class Agent:
             self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
         self.chat = []
+
         self.use_memory = use_memory
-        if self.use_memory:
-            self.load_memory()
 
         self.view_list_dir = view_list_dir
         self.always_allow = always_allow
@@ -334,6 +333,7 @@ class Agent:
             args = tool_call["args_json"]
         elif self.api == "openai":
             args = json.loads(tool_call["args_json"])
+
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
@@ -344,6 +344,9 @@ class Agent:
         elif tool_name == "python_executor":
             code = highlight_code(args["code"])
             return f"{code}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to execute the above Python code.{PrintStyle.RESET.value}"
+        elif tool_name == "memory":
+            content = args["content"]
+            return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to store this information in memory for future reference.{PrintStyle.RESET.value}"
         else:
             return ""
 
@@ -372,8 +375,12 @@ class Agent:
         elif tool_name == "python_executor":
             code = args["code"]
             result = run_python_code(code)
+        elif tool_name == "memory":
+            content = args["content"]
+            self.save_memory(content)
+            result = f"Stored in memory: {content}"
         else:
-            return False
+            return ""
 
         return result
 
@@ -415,11 +422,11 @@ class Agent:
             full_system_prompt += f"\n\nHere's a list of files and directories in the current working directory:\n\n{files_tree}"
 
         if self.use_memory:
-            _messages = self.memory + self.chat
-        else:
-            _messages = self.chat
+            memories = self.load_memory()
+            if memories:
+                full_system_prompt += f"\n\nMemories:\n\n{memories[-1]}"
 
-        _messages = _messages[-MEMORY_MAX:]
+        _messages = self.chat[-MAX_MESSAGES:]
 
         @retry(
             wait=wait_random_exponential(min=2, max=60),
@@ -430,17 +437,21 @@ class Agent:
             reraise=True,
         )
         def get_stream():
+            tools = [
+                self.format_tool(FILE_WRITER_TOOL),
+                self.format_tool(FILE_READER_TOOL),
+                self.format_tool(PYTHON_EXECUTOR_TOOL),
+            ]
+            if self.use_memory:
+                tools.append(self.format_tool(MEMORY_TOOL))
+
             if self.api == "anthropic":
                 stream = self.client.messages.stream(
                     max_tokens=4096,
                     system=full_system_prompt,
                     messages=_messages,
                     model=self.model,
-                    tools=[
-                        self.format_tool(FILE_WRITER_TOOL),
-                        self.format_tool(FILE_READER_TOOL),
-                        self.format_tool(PYTHON_EXECUTOR_TOOL),
-                    ],
+                    tools=tools,
                 )
             elif self.api == "openai":
                 stream = self.client.chat.completions.create(
@@ -453,11 +464,7 @@ class Agent:
                     ]
                     + _messages,
                     model=self.model,
-                    tools=[
-                        FILE_WRITER_TOOL,
-                        FILE_READER_TOOL,
-                        PYTHON_EXECUTOR_TOOL,
-                    ],
+                    tools=tools,
                     stream=True,
                 )
             return stream
@@ -564,12 +571,6 @@ class Agent:
         if text_stream_content and not tool_call_detected:
             print("", flush=True)
 
-        # response_message = {
-        #     "role": "assistant",
-        #     "content": text_stream_content,
-        # }
-        # if tool_call_detected:
-        #     response_message["tool_calls"] = self.format_tool_call_response(tool_calls)
         self.chat.append(response_message)
 
         if tool_call_detected:
@@ -723,30 +724,29 @@ class Agent:
                                 }
                             )
 
-        if self.use_memory:
-            self.save_memory()
-
         if tool_call_detected:
             self.run()
-
-    def save_memory(self) -> None:
-        """
-        Saves the conversation memory to a file.
-        """
-        memory = (self.memory + self.chat)[-MEMORY_MAX:]
-        with open(MEMORY_FILE, "w") as f:
-            json.dump(memory, f)
 
     def load_memory(self) -> None:
         """
         Loads the conversation memory from a file.
         """
-        self.chat = []
         if os.path.exists(MEMORY_FILE):
             with open(MEMORY_FILE, "r") as f:
-                self.memory = json.load(f)
+                return json.load(f)
         else:
-            self.memory = []
+            return []
+
+    def save_memory(self, memory) -> None:
+        """
+        Saves the conversation memory to a file.
+        """
+        memories = self.load_memory()
+        while len("".join(memories + [memory])) > 4096:
+            memories.pop(0)
+        memories.append(memory)
+        with open(MEMORY_FILE, "w") as f:
+            json.dump(memories, f)
 
 
 # Tool definitions for integration with the OpenAI agent
@@ -804,6 +804,24 @@ PYTHON_EXECUTOR_TOOL = {
                 },
             },
             "required": ["code"],
+        },
+    },
+}
+
+MEMORY_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "memory",
+        "description": "Stores information from the conversation to provide context for future responses. Useful for maintaining state across multiple sessions, especially in memory-intensive tasks.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "The content to store in memory.",
+                },
+            },
+            "required": ["content"],
         },
     },
 }
