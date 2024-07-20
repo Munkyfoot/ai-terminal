@@ -274,8 +274,11 @@ def run_python_code(code):
         f"{PrintStyle.BRIGHT_CYAN.value}Executing Python code...{PrintStyle.RESET.value}"
     )
     try:
+        abs_dir = os.path.abspath(os.path.dirname(__file__))
         output = subprocess.check_output(
-            ["python", "-c", code], stderr=subprocess.STDOUT, text=True
+            [os.path.join(abs_dir, "venv", "Scripts", "python.exe"), "-c", code],
+            stderr=subprocess.STDOUT,
+            text=True,
         )
         return (
             f"Python code executed successfully.\n\nOutput:\n\n{output}"

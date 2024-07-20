@@ -43,6 +43,8 @@ AI Terminal is a Python-based command-line tool that enables interaction with Op
 
 4. **Activate the virtual environment:**
 
+   **This is required for the python execution tool to work.**
+
    - For Linux/macOS:
      ```bash
      source venv/bin/activate
