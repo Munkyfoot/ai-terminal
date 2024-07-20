@@ -292,7 +292,7 @@ class Agent:
     def __init__(
         self,
         model: Literal[
-            "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet-20240620"
+            "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet-20240620"
         ] = "gpt-4o",
         use_memory=False,
         view_list_dir=False,

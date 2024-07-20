@@ -10,6 +10,7 @@ DEFAULTS_FILE = os.path.abspath(
 
 AVAILABLE_MODELS = [
     "gpt-4o",
+    "gpt-4o-mini",
     "gpt-4-turbo",
     "gpt-3.5-turbo",
     "claude-3-5-sonnet-20240620",
