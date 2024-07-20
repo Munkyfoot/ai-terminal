@@ -292,7 +292,11 @@ class Agent:
     def __init__(
         self,
         model: Literal[
-            "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo", "claude-3-5-sonnet-20240620"
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo",
+            "claude-3-5-sonnet-20240620",
         ] = "gpt-4o",
         use_memory=False,
         view_list_dir=False,
@@ -619,12 +623,6 @@ class Agent:
                                 "tool_name": tool_call.function.name,
                                 "args_json": "",
                             }
-                            # print(
-                            #     "\n" if text_stream_content else "",
-                            #     f"{PrintStyle.BRIGHT_CYAN.value}Building tool call...{PrintStyle.RESET.value}",
-                            #     sep="",
-                            #     flush=True,
-                            # )
 
                         tool_calls[tool_call.index][
                             "args_json"
@@ -660,103 +658,119 @@ class Agent:
         self.chat.append(response_message)
 
         if tool_call_detected:
+            has_failed = (
+                False  # Flag to indicate if a tool call has failed at least once
+            )
             for index, tool_call in tool_calls.items():
                 valid_tool_call, error_message = self.is_valid_tool_call(tool_call)
                 if valid_tool_call:
                     self._failed_tool_calls = 0
-                elif self._failed_tool_calls < 3:
-                    self._failed_tool_calls += 1
-                    print(
-                        f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error using {tool_call['tool_name']} tool. Trying again... (Attempt {self._failed_tool_calls}/3){PrintStyle.RESET.value}"
-                    )
-                    if self.api == "anthropic":
-                        self.chat.append(
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "tool_result",
-                                        "tool_use_id": tool_call["tool_call_id"],
-                                        "content": error_message,
-                                        "is_error": True,
-                                    }
-                                ],
-                            }
-                        )
-                    elif self.api == "openai":
-                        self.chat.append(
-                            {
-                                "tool_call_id": tool_call["tool_call_id"],
-                                "role": "tool",
-                                "name": tool_call["tool_name"],
-                                "content": error_message,
-                            }
-                        )
-                    break
-                else:
-                    print(
-                        f"{PrintStyle.BRIGHT_RED.value}⚠ Unable to use {tool_call['tool_name']} tool. Maximum attempts reached.{PrintStyle.RESET.value}"
-                    )
-                    if self.api == "anthropic":
-                        self.chat.append(
-                            {
-                                "role": "user",
-                                "content": [
-                                    {
-                                        "type": "tool_result",
-                                        "tool_use_id": tool_call["tool_call_id"],
-                                        "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
-                                        "is_error": True,
-                                    }
-                                ],
-                            }
-                        )
-                    elif self.api == "openai":
-                        self.chat.append(
-                            {
-                                "tool_call_id": tool_call["tool_call_id"],
-                                "role": "tool",
-                                "name": tool_call["tool_name"],
-                                "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
-                            }
-                        )
-                    break
 
-                if not self.always_allow:
-                    print(
-                        f"{PrintStyle.BRIGHT_CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}",
-                        end=" ",
-                    )
-                    tool_confirmation = input(
-                        f"{PrintStyle.BRIGHT_MAGENTA.value}Allow?\n[y or yes to confirm else cancel with optional message]: {PrintStyle.RESET.value}"
-                    )
-                if self.always_allow or tool_confirmation.lower() in ["y", "yes"]:
-                    try:
-                        tool_result = self.process_tool_call(tool_call)
-                        if tool_result:
-                            text_stream_content += f"\n\n{tool_result}"
+                    if not self.always_allow:
+                        print(
+                            f"{PrintStyle.BRIGHT_CYAN.value}{self.get_tool_call_message(tool_call)}{PrintStyle.RESET.value}",
+                            end=" ",
+                        )
+                        tool_confirmation = input(
+                            f"{PrintStyle.BRIGHT_MAGENTA.value}Allow?\n[y or yes to confirm else cancel with optional message]: {PrintStyle.RESET.value}"
+                        )
+                    if self.always_allow or tool_confirmation.lower() in ["y", "yes"]:
+                        try:
+                            tool_result = self.process_tool_call(tool_call)
+                            if tool_result:
+                                text_stream_content += f"\n\n{tool_result}"
 
-                        if tool_result.startswith("Error"):
+                            if tool_result.startswith("Error"):
+                                print(
+                                    f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Something went wrong.{PrintStyle.RESET.value}"
+                                )
+                            else:
+                                print(
+                                    f"{PrintStyle.BRIGHT_GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
+                                )
+
+                            if self.api == "anthropic":
+                                self.chat.append(
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "tool_result",
+                                                "tool_use_id": tool_call[
+                                                    "tool_call_id"
+                                                ],
+                                                "content": tool_result,
+                                                "is_error": tool_result.startswith(
+                                                    "Error"
+                                                ),
+                                            }
+                                        ],
+                                    }
+                                )
+                            elif self.api == "openai":
+                                self.chat.append(
+                                    {
+                                        "tool_call_id": tool_call["tool_call_id"],
+                                        "role": "tool",
+                                        "name": tool_call["tool_name"],
+                                        "content": tool_result,
+                                    }
+                                )
+                        except Exception as e:
                             print(
-                                f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Something went wrong.{PrintStyle.RESET.value}"
+                                f"{PrintStyle.BRIGHT_RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
                             )
-                        else:
-                            print(
-                                f"{PrintStyle.BRIGHT_GREEN.value}✔ Tool executed successfully.{PrintStyle.RESET.value}"
-                            )
+
+                            if self.api == "anthropic":
+                                self.chat.append(
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "tool_result",
+                                                "tool_use_id": tool_call[
+                                                    "tool_call_id"
+                                                ],
+                                                "content": f"Error executing tool: {e}",
+                                                "is_error": True,
+                                            }
+                                        ],
+                                    }
+                                )
+                            elif self.api == "openai":
+                                self.chat.append(
+                                    {
+                                        "tool_call_id": tool_call["tool_call_id"],
+                                        "role": "tool",
+                                        "name": tool_call["tool_name"],
+                                        "content": f"Error executing tool: {e}",
+                                    }
+                                )
+                    else:
+                        print(
+                            f"{PrintStyle.BRIGHT_YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
+                        )
 
                         if self.api == "anthropic":
+                            response_content = [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": tool_call["tool_call_id"],
+                                    "content": "User cancelled the tool execution.",
+                                    "is_error": True,
+                                }
+                            ]
+                            if tool_confirmation:
+                                response_content.append(
+                                    {
+                                        "type": "text",
+                                        "text": tool_confirmation,
+                                    }
+                                )
                             self.chat.append(
                                 {
                                     "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "tool_result",
-                                            "tool_use_id": tool_call["tool_call_id"],
-                                            "content": tool_result,
-                                            "is_error": tool_result.startswith("Error"),
-                                        }
-                                    ],
+                                    "content": response_content,
                                 }
                             )
                         elif self.api == "openai":
@@ -765,14 +779,23 @@ class Agent:
                                     "tool_call_id": tool_call["tool_call_id"],
                                     "role": "tool",
                                     "name": tool_call["tool_name"],
-                                    "content": tool_result,
+                                    "content": f"""User cancelled the tool execution.{
+                                        f' User Message: {tool_confirmation}' if tool_confirmation else ''
+                                    }""",
                                 }
                             )
-                    except Exception as e:
-                        print(
-                            f"{PrintStyle.BRIGHT_RED.value}⚠ Error executing tool: {e}{PrintStyle.RESET.value}"
-                        )
+                else:
+                    if self._failed_tool_calls < 3:
+                        # Only increment the failed tool calls counter once per response
+                        if not has_failed:
+                            self._failed_tool_calls += (
+                                1  # Increment the failed tool calls counter
+                            )
+                            has_failed = True
 
+                        print(
+                            f"{PrintStyle.BRIGHT_YELLOW.value}⚠ Error using {tool_call['tool_name']} tool. Trying again... (Attempt {self._failed_tool_calls}/3){PrintStyle.RESET.value}"
+                        )
                         if self.api == "anthropic":
                             self.chat.append(
                                 {
@@ -781,7 +804,7 @@ class Agent:
                                         {
                                             "type": "tool_result",
                                             "tool_use_id": tool_call["tool_call_id"],
-                                            "content": f"Error executing tool: {e}",
+                                            "content": error_message,
                                             "is_error": True,
                                         }
                                     ],
@@ -793,50 +816,34 @@ class Agent:
                                     "tool_call_id": tool_call["tool_call_id"],
                                     "role": "tool",
                                     "name": tool_call["tool_name"],
-                                    "content": f"Error executing tool: {e}",
+                                    "content": error_message,
                                 }
                             )
-                else:
-                    print(
-                        f"{PrintStyle.BRIGHT_YELLOW.value}✖ Cancelled {tool_call['tool_name']}.{PrintStyle.RESET.value}"
-                    )
-
-                    if self.api == "anthropic":
-                        response_content = [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": tool_call["tool_call_id"],
-                                "content": "User cancelled the tool execution.",
-                                "is_error": True,
-                            }
-                        ]
-                        if tool_confirmation:
-                            response_content.append(
-                                {
-                                    "type": "text",
-                                    "text": tool_confirmation,
-                                }
-                            )
-                        self.chat.append(
-                            {
-                                "role": "user",
-                                "content": response_content,
-                            }
+                    else:
+                        print(
+                            f"{PrintStyle.BRIGHT_RED.value}⚠ Unable to use {tool_call['tool_name']} tool. Maximum attempts reached.{PrintStyle.RESET.value}"
                         )
-                    elif self.api == "openai":
-                        self.chat.append(
-                            {
-                                "tool_call_id": tool_call["tool_call_id"],
-                                "role": "tool",
-                                "name": tool_call["tool_name"],
-                                "content": f"User cancelled the tool execution.",
-                            }
-                        )
-                        if tool_confirmation:
+                        if self.api == "anthropic":
                             self.chat.append(
                                 {
                                     "role": "user",
-                                    "content": tool_confirmation,
+                                    "content": [
+                                        {
+                                            "type": "tool_result",
+                                            "tool_use_id": tool_call["tool_call_id"],
+                                            "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
+                                            "is_error": True,
+                                        }
+                                    ],
+                                }
+                            )
+                        elif self.api == "openai":
+                            self.chat.append(
+                                {
+                                    "tool_call_id": tool_call["tool_call_id"],
+                                    "role": "tool",
+                                    "name": tool_call["tool_name"],
+                                    "content": "Tool use failed again. Maximum attempts reached. Do not retry.",
                                 }
                             )
 
