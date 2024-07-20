@@ -933,7 +933,7 @@ PYTHON_EXECUTOR_TOOL = {
     "type": "function",
     "function": {
         "name": "python_executor",
-        "description": "Executes Python code and returns the output. Useful for doing calculations, generating data, etc. In addition to standard libraries, you can use matplotlib, numpy, and pillow. Avoid using this for potentially harmful code.",
+        "description": "Executes Python code and returns the output. Useful for doing calculations, generating data, etc. In addition to standard libraries, you can use matplotlib, numpy, pypdf, and pillow. Avoid using this for potentially harmful code.",
         "parameters": {
             "type": "object",
             "properties": {
