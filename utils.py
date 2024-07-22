@@ -3,12 +3,12 @@ import os
 import re
 import subprocess
 import sys
+from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
-from dataclasses import dataclass
 
-from dotenv import load_dotenv
 from anthropic import Anthropic
+from dotenv import load_dotenv
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
@@ -275,8 +275,12 @@ def run_python_code(code):
     )
     try:
         abs_dir = os.path.abspath(os.path.dirname(__file__))
+        if USER_PLATFORM == "win32":
+            python_path = os.path.join(abs_dir, "venv", "Scripts", "python.exe")
+        else:
+            python_path = os.path.join(abs_dir, "venv", "bin", "python")
         output = subprocess.check_output(
-            [os.path.join(abs_dir, "venv", "Scripts", "python.exe"), "-c", code],
+            [python_path, "-c", code],
             stderr=subprocess.STDOUT,
             text=True,
         )
