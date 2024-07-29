@@ -517,6 +517,9 @@ class Agent:
 
         _messages = self.chat[-MAX_MESSAGES:]
 
+        while _messages and _messages[0]["role"] != "user":
+            _messages.pop(0)
+
         @retry(
             wait=wait_random_exponential(min=2, max=60),
             stop=stop_after_attempt(3),
