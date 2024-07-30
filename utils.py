@@ -214,13 +214,14 @@ def get_files_dirs(use_gitignore=True, ignore_all_hidden=False, max_depth=1):
     return "\n".join(output)
 
 
-def write_file(file_path, content):
+def write_file(file_path, content, append=False):
     """
     Writes content to a file, creating directories if necessary.
 
     Args:
         file_path (str): The path of the file to write (relative to the current working directory).
         content (str): The content to write to the file.
+        append (bool): Whether to append to the file instead of overwriting it.
 
     Returns:
         str: A success message indicating that the file was written successfully.
@@ -231,7 +232,8 @@ def write_file(file_path, content):
     file_path = os.path.join(USER_CWD, file_path)
     try:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        with open(file_path, "w", encoding="utf-8") as file:
+        mode = "a" if append else "w"
+        with open(file_path, mode, encoding="utf-8") as file:
             file.write(content)
         return f"File '{file_path}' written successfully."
     except:
@@ -366,10 +368,10 @@ class Agent:
             )
 
         if tool_call["tool_name"] == "file_writer":
-            if "file_path" not in args or "content" not in args:
+            if "file_path" not in args or "content" not in args or "append" not in args:
                 return (
                     False,
-                    "Missing required arguments. 'file_path' and 'content' are required arguments for the 'file_writer' tool. If you receive this error repeatedly, it may be because the content is too large. Try reducing the content size - you can break it up into multiple tool calls if necessary.",
+                    "Missing required arguments. 'file_path', 'content' and 'append' are required arguments for the 'file_writer' tool. If you receive this error repeatedly, it may be because the content is too large. Try reducing the content size - you can break it up into multiple tool calls if necessary.",
                 )
         elif tool_call["tool_name"] == "file_reader":
             if "file_path" not in args:
@@ -417,7 +419,11 @@ class Agent:
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
-            return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to create the file '{file_name}' with this content.{PrintStyle.RESET.value}"
+            append = bool(args["append"])
+            if append:
+                return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to append the content to the file '{file_name}'.{PrintStyle.RESET.value}"
+            else:
+                return f"{PrintStyle.WHITE.value}{content}\n\n{PrintStyle.BRIGHT_CYAN.value}GPT wants to create the file '{file_name}' with this content.{PrintStyle.RESET.value}"
         elif tool_name == "file_reader":
             file_name = args["file_path"]
             return f"{PrintStyle.BRIGHT_CYAN.value}GPT wants to open and read '{file_name}'.{PrintStyle.RESET.value}"
@@ -451,7 +457,8 @@ class Agent:
         if tool_name == "file_writer":
             file_name = args["file_path"]
             content = args["content"]
-            result = write_file(file_name, content)
+            append = bool(args["append"])
+            result = write_file(file_name, content, append)
         elif tool_name == "file_reader":
             file_name = args["file_path"]
             result = read_file(file_name)
@@ -912,8 +919,12 @@ FILE_WRITER_TOOL = {
                     "type": "string",
                     "description": "The content to write to the file.",
                 },
+                "append": {
+                    "type": "boolean",
+                    "description": "Whether to append to the file if it already exists. Useful for writing longer content in multiple steps.",
+                },
             },
-            "required": ["file_path", "content"],
+            "required": ["file_path", "content", "append"],
         },
     },
 }
