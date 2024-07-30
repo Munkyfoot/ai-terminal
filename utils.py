@@ -234,6 +234,8 @@ def write_file(file_path, content, append=False):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         mode = "a" if append else "w"
         with open(file_path, mode, encoding="utf-8") as file:
+            if append and not content.startswith("\n"):
+                file.write("\n")
             file.write(content)
         return f"File '{file_path}' written successfully."
     except:
