@@ -17,7 +17,7 @@ load_dotenv()
 
 # Constants
 MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "memory.json"))
-MAX_MESSAGES = 24  # Limit for messages stored in chat history
+MAX_CHAT_TOTAL_CONTENT = 128000  # Maximum total content length for all messages
 
 # User's platform and environment information
 USER_PLATFORM = sys.platform
@@ -500,6 +500,23 @@ class Agent:
 
         return formatted_tool
 
+    def abridge_chat(self):
+        """
+        When the total content of the chat exceeds the maximum limit, or the first message is not from the user, the chat is abridged.
+
+        Returns:
+            None
+        """
+
+        while (
+            len(json.dumps(self.chat)) > MAX_CHAT_TOTAL_CONTENT
+            or self.chat[0]["role"] != "user"
+        ):
+            print(
+                f"{PrintStyle.BRIGHT_YELLOW.value}Max chat content exceeded or first message not from user. Abridging chat...{PrintStyle.RESET.value}"
+            )
+            self.chat.pop(0)
+
     def run(self, query: str = "") -> None:
         """
         Runs the agent with the provided user query.
@@ -522,10 +539,9 @@ class Agent:
                 for i, memory in enumerate(memories):
                     full_system_prompt += f"#{i} -> {memory}\n\n"
 
-        _messages = self.chat[-MAX_MESSAGES:]
+        self.abridge_chat()
 
-        while _messages and _messages[0]["role"] != "user":
-            _messages.pop(0)
+        _messages = self.chat
 
         @retry(
             wait=wait_random_exponential(min=2, max=60),
