@@ -565,7 +565,7 @@ class Agent:
 
             if self.api == "anthropic":
                 stream = self.client.messages.stream(
-                    max_tokens=4096,
+                    max_tokens=self.max_output_tokens,
                     system=full_system_prompt,
                     messages=_messages,
                     model=self.model,
@@ -573,7 +573,7 @@ class Agent:
                 )
             elif self.api == "openai":
                 stream = self.client.chat.completions.create(
-                    max_tokens=4096,
+                    max_tokens=self.max_output_tokens,
                     messages=[
                         {
                             "role": "system",
@@ -918,6 +918,16 @@ class Agent:
             memories.pop(index)
             with open(MEMORY_FILE, "w") as f:
                 json.dump(memories, f)
+
+    @property
+    def max_output_tokens(self) -> int:
+        """
+        Returns the maximum number of tokens allowed in the output.
+        """
+        if self.model == "gpt-4o-mini":
+            return 16384
+        else:
+            return 4096
 
 
 # Tool definitions for integration with the OpenAI agent
