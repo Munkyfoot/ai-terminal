@@ -654,6 +654,9 @@ class Agent:
                     for tool_call in chunk.choices[0].delta.tool_calls:
                         tool_call_detected = True
                         if tool_call.index not in tool_calls:
+                            print(
+                                f"{PrintStyle.BRIGHT_CYAN.value}Creating {tool_call.function.name} tool call...{PrintStyle.RESET.value}"
+                            )
                             tool_calls[tool_call.index] = {
                                 "tool_call_id": tool_call.id,
                                 "tool_name": tool_call.function.name,
