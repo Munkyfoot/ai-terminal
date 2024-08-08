@@ -304,6 +304,7 @@ class Agent:
         self,
         model: Literal[
             "gpt-4o",
+            "gpt-4o-2024-08-06",
             "gpt-4o-mini",
             "gpt-4-turbo",
             "gpt-3.5-turbo",
@@ -924,7 +925,7 @@ class Agent:
         """
         Returns the maximum number of tokens allowed in the output.
         """
-        if self.model == "gpt-4o-mini":
+        if self.model in ["gpt-4o-mini", "gpt-4o-2024-08-06"]:
             return 16384
         else:
             return 4096
