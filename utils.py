@@ -17,7 +17,7 @@ load_dotenv()
 
 # Constants
 MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "memory.json"))
-MAX_CHAT_TOTAL_CONTENT = 128000  # Maximum total content length for all messages
+MAX_CHAT_TOTAL_CONTENT = 128000 * 3  # Maximum total content length for all messages
 
 # User's platform and environment information
 USER_PLATFORM = sys.platform
