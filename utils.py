@@ -654,8 +654,11 @@ class Agent:
                     for tool_call in chunk.choices[0].delta.tool_calls:
                         tool_call_detected = True
                         if tool_call.index not in tool_calls:
+                            if len(text_stream_content) > 0:
+                                print("", flush=True)
                             print(
-                                f"{PrintStyle.BRIGHT_CYAN.value}Creating {tool_call.function.name} tool call...{PrintStyle.RESET.value}"
+                                f"{PrintStyle.BRIGHT_CYAN.value}Creating {tool_call.function.name} tool call...{PrintStyle.RESET.value}",
+                                flush=True,
                             )
                             tool_calls[tool_call.index] = {
                                 "tool_call_id": tool_call.id,
